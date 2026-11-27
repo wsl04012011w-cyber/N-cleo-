@@ -9,6 +9,7 @@
 #include <string>
 #include <thread>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "llama.h"
@@ -75,6 +76,45 @@ int32_t invoke_chat_template(
         return fn(tmpl, chat, n_msg, add_ass, buf, length);
     } else {
         return fn(model, tmpl, chat, n_msg, add_ass, buf, length);
+    }
+}
+
+template <typename T, typename = void>
+struct has_use_mmap : std::false_type {};
+
+template <typename T>
+struct has_use_mmap<T, std::void_t<decltype(std::declval<T &>().use_mmap)>> : std::true_type {};
+
+template <typename T, typename = void>
+struct has_use_mlock : std::false_type {};
+
+template <typename T>
+struct has_use_mlock<T, std::void_t<decltype(std::declval<T &>().use_mlock)>> : std::true_type {};
+
+template <typename ModelParams>
+void configure_model_load_params(ModelParams & mparams) {
+    if constexpr (has_use_mmap<ModelParams>::value) {
+        mparams.use_mmap = true;
+    }
+    if constexpr (has_use_mlock<ModelParams>::value) {
+        mparams.use_mlock = false;
+    }
+}
+
+// Compatibilidade automática com assinaturas de llama_sampler_init_penalties (4 ou 5 argumentos com n_vocab)
+template <typename Fn>
+llama_sampler * invoke_penalties_sampler(
+    Fn fn,
+    int32_t n_vocab,
+    int32_t penalty_last_n,
+    float penalty_repeat,
+    float penalty_freq,
+    float penalty_present
+) {
+    if constexpr (std::is_invocable_r_v<llama_sampler *, Fn, int32_t, int32_t, float, float, float>) {
+        return fn(n_vocab, penalty_last_n, penalty_repeat, penalty_freq, penalty_present);
+    } else {
+        return fn(penalty_last_n, penalty_repeat, penalty_freq, penalty_present);
     }
 }
 
@@ -160,8 +200,7 @@ Java_com_example_engine_LlamaCppNativeBridge_nativeLoadModel(
     unload_locked();
 
     llama_model_params mparams = llama_model_default_params();
-    mparams.use_mmap = true;
-    mparams.use_mlock = false;
+    configure_model_load_params(mparams);
     mparams.n_gpu_layers = 99; // usa GPU se Vulkan estiver compilado; caso contrário CPU otimizado
 
     g_model = llama_model_load_from_file(model_path.c_str(), mparams);
@@ -362,7 +401,18 @@ Java_com_example_engine_LlamaCppNativeBridge_nativeGenerateStream(
 
     auto sparams = llama_sampler_chain_default_params();
     llama_sampler * smpl = llama_sampler_chain_init(sparams);
-    llama_sampler_chain_add(smpl, llama_sampler_init_penalties(64, repeat_penalty, 0.0f, 0.0f));
+    const int32_t n_vocab = llama_vocab_n_tokens(vocab);
+    llama_sampler_chain_add(
+        smpl,
+        invoke_penalties_sampler(
+            llama_sampler_init_penalties,
+            n_vocab,
+            64,
+            repeat_penalty,
+            0.0f,
+            0.0f
+        )
+    );
     if (temperature <= 0.01f) {
         llama_sampler_chain_add(smpl, llama_sampler_init_greedy());
     } else {
