@@ -1,0 +1,740 @@
+﻿2026-11-27T00:29:05.8036163Z ##[group]Run actions/checkout@v4
+2026-11-27T00:29:05.8037411Z with:
+2026-11-27T00:29:05.8038335Z   repository: ggml-org/llama.cpp
+2026-11-27T00:29:05.8039530Z   ref: master
+2026-11-27T00:29:05.8040479Z   path: third_party/llama.cpp
+2026-11-27T00:29:05.8041599Z   fetch-depth: 1
+2026-11-27T00:29:05.8052422Z   token: ***
+2026-11-27T00:29:05.8053346Z   ssh-strict: true
+2026-11-27T00:29:05.8054399Z   ssh-user: git
+2026-11-27T00:29:05.8055367Z   persist-credentials: true
+2026-11-27T00:29:05.8056446Z   clean: true
+2026-11-27T00:29:05.8057421Z   sparse-checkout-cone-mode: true
+2026-11-27T00:29:05.8058599Z   fetch-tags: false
+2026-11-27T00:29:05.8059573Z   show-progress: true
+2026-11-27T00:29:05.8060573Z   lfs: false
+2026-11-27T00:29:05.8061463Z   submodules: false
+2026-11-27T00:29:05.8062436Z   set-safe-directory: true
+2026-11-27T00:29:05.8063558Z   allow-unsafe-pr-checkout: false
+2026-11-27T00:29:05.8064870Z env:
+2026-11-27T00:29:05.8065753Z   ANDROID_NDK_VERSION: 28.2.13676358
+2026-11-27T00:29:05.8066940Z   CMAKE_VERSION: 3.31.6
+2026-11-27T00:29:05.8068077Z   ANDROID_PLATFORM_VERSION: android-36
+2026-11-27T00:29:05.8069351Z   ANDROID_BUILD_TOOLS_VERSION: 36.0.0
+2026-11-27T00:29:05.8070537Z ##[endgroup]
+2026-11-27T00:29:05.8979399Z Syncing repository: ggml-org/llama.cpp
+2026-11-27T00:29:05.8999687Z ##[group]Getting Git version info
+2026-11-27T00:29:05.9021378Z Working directory is '/home/runner/work/N-cleo-/N-cleo-/third_party/llama.cpp'
+2026-11-27T00:29:05.9032261Z [command]/usr/bin/git version
+2026-11-27T00:29:05.9080548Z git version 2.56.1
+2026-11-27T00:29:05.9104549Z ##[endgroup]
+2026-11-27T00:29:05.9119786Z Temporarily overriding HOME='/home/runner/work/_temp/8ac9c63b-d1b7-4400-a03a-fff4fb153fac' before making global git config changes
+2026-11-27T00:29:05.9125312Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-27T00:29:05.9130112Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/N-cleo-/N-cleo-/third_party/llama.cpp
+2026-11-27T00:29:05.9179000Z ##[group]Initializing the repository
+2026-11-27T00:29:05.9182182Z [command]/usr/bin/git init /home/runner/work/N-cleo-/N-cleo-/third_party/llama.cpp
+2026-11-27T00:29:05.9246718Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-27T00:29:05.9257257Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-27T00:29:05.9261038Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-27T00:29:05.9264721Z hint: call:
+2026-11-27T00:29:05.9266294Z hint:
+2026-11-27T00:29:05.9268229Z hint: 	git config --global init.defaultBranch <name>
+2026-11-27T00:29:05.9270236Z hint:
+2026-11-27T00:29:05.9271920Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-27T00:29:05.9274362Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-27T00:29:05.9276091Z hint:
+2026-11-27T00:29:05.9276968Z hint: 	git branch -m <name>
+2026-11-27T00:29:05.9277985Z hint:
+2026-11-27T00:29:05.9279572Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-27T00:29:05.9283883Z Initialized empty Git repository in /home/runner/work/N-cleo-/N-cleo-/third_party/llama.cpp/.git/
+2026-11-27T00:29:05.9290551Z [command]/usr/bin/git remote add origin https://github.com/ggml-org/llama.cpp
+2026-11-27T00:29:05.9315014Z ##[endgroup]
+2026-11-27T00:29:05.9316860Z ##[group]Disabling automatic garbage collection
+2026-11-27T00:29:05.9319032Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-27T00:29:05.9363111Z ##[endgroup]
+2026-11-27T00:29:05.9366540Z ##[group]Setting up auth
+2026-11-27T00:29:05.9369862Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-27T00:29:05.9411110Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-27T00:29:05.9775400Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-27T00:29:05.9819726Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-27T00:29:06.0173142Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-27T00:29:06.0212763Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-27T00:29:06.0514208Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-27T00:29:06.0556023Z ##[endgroup]
+2026-11-27T00:29:06.0557689Z ##[group]Fetching the repository
+2026-11-27T00:29:06.0567137Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +refs/heads/master*:refs/remotes/origin/master* +refs/tags/master*:refs/tags/master*
+2026-11-27T00:29:10.6833226Z From https://github.com/ggml-org/llama.cpp
+2026-11-27T00:29:10.6834506Z  * [new branch]      master         -> origin/master
+2026-11-27T00:29:10.6835224Z  * [new tag]         master-0035858 -> master-0035858
+2026-11-27T00:29:10.6835940Z  * [new tag]         master-003ba2f -> master-003ba2f
+2026-11-27T00:29:10.6836697Z  * [new tag]         master-018f227 -> master-018f227
+2026-11-27T00:29:10.6837434Z  * [new tag]         master-01a297b -> master-01a297b
+2026-11-27T00:29:10.6838113Z  * [new tag]         master-02c5b27 -> master-02c5b27
+2026-11-27T00:29:10.6838830Z  * [new tag]         master-02d6988 -> master-02d6988
+2026-11-27T00:29:10.6839549Z  * [new tag]         master-02f9d96 -> master-02f9d96
+2026-11-27T00:29:10.6840345Z  * [new tag]         master-03f7e33 -> master-03f7e33
+2026-11-27T00:29:10.6841074Z  * [new tag]         master-0412ec2 -> master-0412ec2
+2026-11-27T00:29:10.6845562Z  * [new tag]         master-04aaae1 -> master-04aaae1
+2026-11-27T00:29:10.6846357Z  * [new tag]         master-04c6f5e -> master-04c6f5e
+2026-11-27T00:29:10.6847129Z  * [new tag]         master-051c70d -> master-051c70d
+2026-11-27T00:29:10.6847829Z  * [new tag]         master-051e1b0 -> master-051e1b0
+2026-11-27T00:29:10.6848559Z  * [new tag]         master-061f5f8 -> master-061f5f8
+2026-11-27T00:29:10.6849218Z  * [new tag]         master-0631ea3 -> master-0631ea3
+2026-11-27T00:29:10.6849886Z  * [new tag]         master-0728c5a -> master-0728c5a
+2026-11-27T00:29:10.6850493Z  * [new tag]         master-074bea2 -> master-074bea2
+2026-11-27T00:29:10.6851169Z  * [new tag]         master-07aaa0f -> master-07aaa0f
+2026-11-27T00:29:10.6851815Z  * [new tag]         master-07e9ace -> master-07e9ace
+2026-11-27T00:29:10.6852443Z  * [new tag]         master-084e2f0 -> master-084e2f0
+2026-11-27T00:29:10.6853109Z  * [new tag]         master-0919a0f -> master-0919a0f
+2026-11-27T00:29:10.6854063Z  * [new tag]         master-097e121 -> master-097e121
+2026-11-27T00:29:10.6854732Z  * [new tag]         master-09aecbf -> master-09aecbf
+2026-11-27T00:29:10.6855813Z  * [new tag]         master-0ad9646 -> master-0ad9646
+2026-11-27T00:29:10.6856459Z  * [new tag]         master-0b2da20 -> master-0b2da20
+2026-11-27T00:29:10.6857072Z  * [new tag]         master-0b366e7 -> master-0b366e7
+2026-11-27T00:29:10.6857705Z  * [new tag]         master-0b5a935 -> master-0b5a935
+2026-11-27T00:29:10.6858285Z  * [new tag]         master-0ba76c1 -> master-0ba76c1
+2026-11-27T00:29:10.6858733Z  * [new tag]         master-0bc2cdf -> master-0bc2cdf
+2026-11-27T00:29:10.6859161Z  * [new tag]         master-0be54f7 -> master-0be54f7
+2026-11-27T00:29:10.6859566Z  * [new tag]         master-0bf7cf1 -> master-0bf7cf1
+2026-11-27T00:29:10.6860327Z  * [new tag]         master-0c06204 -> master-0c06204
+2026-11-27T00:29:10.6860710Z  * [new tag]         master-0c44427 -> master-0c44427
+2026-11-27T00:29:10.6861238Z  * [new tag]         master-0c56923 -> master-0c56923
+2026-11-27T00:29:10.6861922Z  * [new tag]         master-0cd22e1 -> master-0cd22e1
+2026-11-27T00:29:10.6862867Z  * [new tag]         master-0d054e2 -> master-0d054e2
+2026-11-27T00:29:10.6863524Z  * [new tag]         master-0db14fe -> master-0db14fe
+2026-11-27T00:29:10.6864139Z  * [new tag]         master-0df7d63 -> master-0df7d63
+2026-11-27T00:29:10.6864518Z  * [new tag]         master-0e018fe -> master-0e018fe
+2026-11-27T00:29:10.6864893Z  * [new tag]         master-0e07e6a -> master-0e07e6a
+2026-11-27T00:29:10.6865303Z  * [new tag]         master-0e6cbff -> master-0e6cbff
+2026-11-27T00:29:10.6865712Z  * [new tag]         master-0ecb1bb -> master-0ecb1bb
+2026-11-27T00:29:10.6866101Z  * [new tag]         master-0ede372 -> master-0ede372
+2026-11-27T00:29:10.6866503Z  * [new tag]         master-0f07cac -> master-0f07cac
+2026-11-27T00:29:10.6866931Z  * [new tag]         master-0f1b21c -> master-0f1b21c
+2026-11-27T00:29:10.6867330Z  * [new tag]         master-10151be -> master-10151be
+2026-11-27T00:29:10.6867716Z  * [new tag]         master-106faaf -> master-106faaf
+2026-11-27T00:29:10.6868117Z  * [new tag]         master-10f19c1 -> master-10f19c1
+2026-11-27T00:29:10.6868539Z  * [new tag]         master-1123f7f -> master-1123f7f
+2026-11-27T00:29:10.6868934Z  * [new tag]         master-11d9023 -> master-11d9023
+2026-11-27T00:29:10.6869398Z  * [new tag]         master-11f3ca0 -> master-11f3ca0
+2026-11-27T00:29:10.6869898Z  * [new tag]         master-1215ed7 -> master-1215ed7
+2026-11-27T00:29:10.6870292Z  * [new tag]         master-129d844 -> master-129d844
+2026-11-27T00:29:10.6870658Z  * [new tag]         master-12b5900 -> master-12b5900
+2026-11-27T00:29:10.6871262Z  * [new tag]         master-136476e -> master-136476e
+2026-11-27T00:29:10.6871932Z  * [new tag]         master-13b0c68 -> master-13b0c68
+2026-11-27T00:29:10.6872453Z  * [new tag]         master-13c351a -> master-13c351a
+2026-11-27T00:29:10.6872918Z  * [new tag]         master-13fe9d2 -> master-13fe9d2
+2026-11-27T00:29:10.6873306Z  * [new tag]         master-1481a9c -> master-1481a9c
+2026-11-27T00:29:10.6873991Z  * [new tag]         master-1623a6e -> master-1623a6e
+2026-11-27T00:29:10.6874412Z  * [new tag]         master-1638757 -> master-1638757
+2026-11-27T00:29:10.6874786Z  * [new tag]         master-16b9cd1 -> master-16b9cd1
+2026-11-27T00:29:10.6875163Z  * [new tag]         master-17366df -> master-17366df
+2026-11-27T00:29:10.6875547Z  * [new tag]         master-173d0e6 -> master-173d0e6
+2026-11-27T00:29:10.6876052Z  * [new tag]         master-17c10ac -> master-17c10ac
+2026-11-27T00:29:10.6876425Z  * [new tag]         master-180b693 -> master-180b693
+2026-11-27T00:29:10.6876790Z  * [new tag]         master-182af73 -> master-182af73
+2026-11-27T00:29:10.6877163Z  * [new tag]         master-18b3562 -> master-18b3562
+2026-11-27T00:29:10.6877539Z  * [new tag]         master-1972616 -> master-1972616
+2026-11-27T00:29:10.6877901Z  * [new tag]         master-1a94186 -> master-1a94186
+2026-11-27T00:29:10.6878270Z  * [new tag]         master-1aa18ef -> master-1aa18ef
+2026-11-27T00:29:10.6878637Z  * [new tag]         master-1b0fd45 -> master-1b0fd45
+2026-11-27T00:29:10.6879013Z  * [new tag]         master-1b107b8 -> master-1b107b8
+2026-11-27T00:29:10.6879390Z  * [new tag]         master-1b6efea -> master-1b6efea
+2026-11-27T00:29:10.6879798Z  * [new tag]         master-1b78ed2 -> master-1b78ed2
+2026-11-27T00:29:10.6880254Z  * [new tag]         master-1bfc153 -> master-1bfc153
+2026-11-27T00:29:10.6880722Z  * [new tag]         master-1cd06fa -> master-1cd06fa
+2026-11-27T00:29:10.6881120Z  * [new tag]         master-1d0824b -> master-1d0824b
+2026-11-27T00:29:10.6881515Z  * [new tag]         master-1d08882 -> master-1d08882
+2026-11-27T00:29:10.6881897Z  * [new tag]         master-1d16309 -> master-1d16309
+2026-11-27T00:29:10.6882387Z  * [new tag]         master-1e3abfc -> master-1e3abfc
+2026-11-27T00:29:10.6883332Z  * [new tag]         master-1e3bc52 -> master-1e3bc52
+2026-11-27T00:29:10.6884163Z  * [new tag]         master-1f0414f -> master-1f0414f
+2026-11-27T00:29:10.6884762Z  * [new tag]         master-1f48b0a -> master-1f48b0a
+2026-11-27T00:29:10.6885164Z  * [new tag]         master-1fcdcc2 -> master-1fcdcc2
+2026-11-27T00:29:10.6885811Z  * [new tag]         master-1fed755 -> master-1fed755
+2026-11-27T00:29:10.6886197Z  * [new tag]         master-2005469 -> master-2005469
+2026-11-27T00:29:10.6886578Z  * [new tag]         master-20568fe -> master-20568fe
+2026-11-27T00:29:10.6886961Z  * [new tag]         master-206e01d -> master-206e01d
+2026-11-27T00:29:10.6887340Z  * [new tag]         master-20d7740 -> master-20d7740
+2026-11-27T00:29:10.6887722Z  * [new tag]         master-20e1e84 -> master-20e1e84
+2026-11-27T00:29:10.6888098Z  * [new tag]         master-20fbf2a -> master-20fbf2a
+2026-11-27T00:29:10.6888485Z  * [new tag]         master-214b6a3 -> master-214b6a3
+2026-11-27T00:29:10.6888897Z  * [new tag]         master-22213a1 -> master-22213a1
+2026-11-27T00:29:10.6889277Z  * [new tag]         master-226255b -> master-226255b
+2026-11-27T00:29:10.6889690Z  * [new tag]         master-229aab3 -> master-229aab3
+2026-11-27T00:29:10.6890072Z  * [new tag]         master-2347463 -> master-2347463
+2026-11-27T00:29:10.6890486Z  * [new tag]         master-2347e45 -> master-2347e45
+2026-11-27T00:29:10.6890872Z  * [new tag]         master-23c7c6f -> master-23c7c6f
+2026-11-27T00:29:10.6891261Z  * [new tag]         master-23fc5c2 -> master-23fc5c2
+2026-11-27T00:29:10.6891644Z  * [new tag]         master-2456837 -> master-2456837
+2026-11-27T00:29:10.6892031Z  * [new tag]         master-2483676 -> master-2483676
+2026-11-27T00:29:10.6892420Z  * [new tag]         master-2485d7a -> master-2485d7a
+2026-11-27T00:29:10.6892813Z  * [new tag]         master-254a7a7 -> master-254a7a7
+2026-11-27T00:29:10.6893209Z  * [new tag]         master-25d43e0 -> master-25d43e0
+2026-11-27T00:29:10.6893796Z  * [new tag]         master-25d7abb -> master-25d7abb
+2026-11-27T00:29:10.6894342Z  * [new tag]         master-265db98 -> master-265db98
+2026-11-27T00:29:10.6894749Z  * [new tag]         master-2663d2c -> master-2663d2c
+2026-11-27T00:29:10.6895144Z  * [new tag]         master-294f424 -> master-294f424
+2026-11-27T00:29:10.6895549Z  * [new tag]         master-29b7baa -> master-29b7baa
+2026-11-27T00:29:10.6895952Z  * [new tag]         master-29cf559 -> master-29cf559
+2026-11-27T00:29:10.6896345Z  * [new tag]         master-2a2e63c -> master-2a2e63c
+2026-11-27T00:29:10.6896739Z  * [new tag]         master-2a5ee02 -> master-2a5ee02
+2026-11-27T00:29:10.6897146Z  * [new tag]         master-2a98bc1 -> master-2a98bc1
+2026-11-27T00:29:10.6897531Z  * [new tag]         master-2b26469 -> master-2b26469
+2026-11-27T00:29:10.6897919Z  * [new tag]         master-2b5eb72 -> master-2b5eb72
+2026-11-27T00:29:10.6898313Z  * [new tag]         master-2bb992f -> master-2bb992f
+2026-11-27T00:29:10.6898705Z  * [new tag]         master-2bdc096 -> master-2bdc096
+2026-11-27T00:29:10.6899118Z  * [new tag]         master-2c9380d -> master-2c9380d
+2026-11-27T00:29:10.6899506Z  * [new tag]         master-2d099e5 -> master-2d099e5
+2026-11-27T00:29:10.6899893Z  * [new tag]         master-2d13786 -> master-2d13786
+2026-11-27T00:29:10.6900287Z  * [new tag]         master-2d3481c -> master-2d3481c
+2026-11-27T00:29:10.6900688Z  * [new tag]         master-2d43387 -> master-2d43387
+2026-11-27T00:29:10.6901081Z  * [new tag]         master-2d5db48 -> master-2d5db48
+2026-11-27T00:29:10.6901472Z  * [new tag]         master-2d7bf11 -> master-2d7bf11
+2026-11-27T00:29:10.6902190Z  * [new tag]         master-2dbf518 -> master-2dbf518
+2026-11-27T00:29:10.6902871Z  * [new tag]         master-2e17dfd -> master-2e17dfd
+2026-11-27T00:29:10.6903317Z  * [new tag]         master-2e664f1 -> master-2e664f1
+2026-11-27T00:29:10.6904007Z  * [new tag]         master-2e6cd4b -> master-2e6cd4b
+2026-11-27T00:29:10.6904463Z  * [new tag]         master-2ec8342 -> master-2ec8342
+2026-11-27T00:29:10.6905100Z  * [new tag]         master-2edbdb0 -> master-2edbdb0
+2026-11-27T00:29:10.6905500Z  * [new tag]         master-2f7732b -> master-2f7732b
+2026-11-27T00:29:10.6905913Z  * [new tag]         master-2f7bf7d -> master-2f7bf7d
+2026-11-27T00:29:10.6906514Z  * [new tag]         master-2f7c8e0 -> master-2f7c8e0
+2026-11-27T00:29:10.6907414Z  * [new tag]         master-2f8cd97 -> master-2f8cd97
+2026-11-27T00:29:10.6907887Z  * [new tag]         master-2f9cf97 -> master-2f9cf97
+2026-11-27T00:29:10.6908315Z  * [new tag]         master-2feb893 -> master-2feb893
+2026-11-27T00:29:10.6908706Z  * [new tag]         master-303f580 -> master-303f580
+2026-11-27T00:29:10.6909127Z  * [new tag]         master-305ba6f -> master-305ba6f
+2026-11-27T00:29:10.6909536Z  * [new tag]         master-305eb5a -> master-305eb5a
+2026-11-27T00:29:10.6909967Z  * [new tag]         master-31572d9 -> master-31572d9
+2026-11-27T00:29:10.6910390Z  * [new tag]         master-315a95a -> master-315a95a
+2026-11-27T00:29:10.6910835Z  * [new tag]         master-3173a62 -> master-3173a62
+2026-11-27T00:29:10.6911246Z  * [new tag]         master-31cfbb1 -> master-31cfbb1
+2026-11-27T00:29:10.6911657Z  * [new tag]         master-32c5411 -> master-32c5411
+2026-11-27T00:29:10.6912072Z  * [new tag]         master-3323112 -> master-3323112
+2026-11-27T00:29:10.6912736Z  * [new tag]         master-334637e -> master-334637e
+2026-11-27T00:29:10.6913141Z  * [new tag]         master-337aea1 -> master-337aea1
+2026-11-27T00:29:10.6913530Z  * [new tag]         master-33e35b8 -> master-33e35b8
+2026-11-27T00:29:10.6914443Z  * [new tag]         master-348acf1 -> master-348acf1
+2026-11-27T00:29:10.6915196Z  * [new tag]         master-3498588 -> master-3498588
+2026-11-27T00:29:10.6915905Z  * [new tag]         master-34a14b2 -> master-34a14b2
+2026-11-27T00:29:10.6916546Z  * [new tag]         master-34ab526 -> master-34ab526
+2026-11-27T00:29:10.6917183Z  * [new tag]         master-34c1072 -> master-34c1072
+2026-11-27T00:29:10.6945536Z  * [new tag]         master-34d9f22 -> master-34d9f22
+2026-11-27T00:29:10.6946079Z  * [new tag]         master-3525899 -> master-3525899
+2026-11-27T00:29:10.6946512Z  * [new tag]         master-3559433 -> master-3559433
+2026-11-27T00:29:10.6946944Z  * [new tag]         master-35a8491 -> master-35a8491
+2026-11-27T00:29:10.6947369Z  * [new tag]         master-3602ac4 -> master-3602ac4
+2026-11-27T00:29:10.6947790Z  * [new tag]         master-36680f6 -> master-36680f6
+2026-11-27T00:29:10.6948197Z  * [new tag]         master-368d0c8 -> master-368d0c8
+2026-11-27T00:29:10.6948616Z  * [new tag]         master-36b4f7e -> master-36b4f7e
+2026-11-27T00:29:10.6949028Z  * [new tag]         master-36d0753 -> master-36d0753
+2026-11-27T00:29:10.6949428Z  * [new tag]         master-36d19a6 -> master-36d19a6
+2026-11-27T00:29:10.6949835Z  * [new tag]         master-37e257c -> master-37e257c
+2026-11-27T00:29:10.6950231Z  * [new tag]         master-38de86a -> master-38de86a
+2026-11-27T00:29:10.6950918Z  * [new tag]         master-3924088 -> master-3924088
+2026-11-27T00:29:10.6951544Z  * [new tag]         master-3b126f6 -> master-3b126f6
+2026-11-27T00:29:10.6951946Z  * [new tag]         master-3bbc1a1 -> master-3bbc1a1
+2026-11-27T00:29:10.6952344Z  * [new tag]         master-3bcc129 -> master-3bcc129
+2026-11-27T00:29:10.6952735Z  * [new tag]         master-3cd8dde -> master-3cd8dde
+2026-11-27T00:29:10.6953133Z  * [new tag]         master-3d01122 -> master-3d01122
+2026-11-27T00:29:10.6953530Z  * [new tag]         master-3d59769 -> master-3d59769
+2026-11-27T00:29:10.6954276Z  * [new tag]         master-3d59ec5 -> master-3d59ec5
+2026-11-27T00:29:10.6954694Z  * [new tag]         master-3d9a551 -> master-3d9a551
+2026-11-27T00:29:10.6955089Z  * [new tag]         master-3de84b2 -> master-3de84b2
+2026-11-27T00:29:10.6955482Z  * [new tag]         master-3e5aa8a -> master-3e5aa8a
+2026-11-27T00:29:10.6955873Z  * [new tag]         master-3e6e70d -> master-3e6e70d
+2026-11-27T00:29:10.6956432Z  * [new tag]         master-3ebb009 -> master-3ebb009
+2026-11-27T00:29:10.6957073Z  * [new tag]         master-3f12231 -> master-3f12231
+2026-11-27T00:29:10.6957474Z  * [new tag]         master-4122dff -> master-4122dff
+2026-11-27T00:29:10.6957882Z  * [new tag]         master-415e99f -> master-415e99f
+2026-11-27T00:29:10.6958274Z  * [new tag]         master-41654ef -> master-41654ef
+2026-11-27T00:29:10.6958959Z  * [new tag]         master-41c6741 -> master-41c6741
+2026-11-27T00:29:10.6959373Z  * [new tag]         master-4262742 -> master-4262742
+2026-11-27T00:29:10.6959763Z  * [new tag]         master-4274722 -> master-4274722
+2026-11-27T00:29:10.6960179Z  * [new tag]         master-42c7c2e -> master-42c7c2e
+2026-11-27T00:29:10.6960591Z  * [new tag]         master-42f70cb -> master-42f70cb
+2026-11-27T00:29:10.6960997Z  * [new tag]         master-4304bd3 -> master-4304bd3
+2026-11-27T00:29:10.6961394Z  * [new tag]         master-4329d1a -> master-4329d1a
+2026-11-27T00:29:10.6962137Z  * [new tag]         master-436e561 -> master-436e561
+2026-11-27T00:29:10.6962928Z  * [new tag]         master-437e778 -> master-437e778
+2026-11-27T00:29:10.6963888Z  * [new tag]         master-44f906e -> master-44f906e
+2026-11-27T00:29:10.6964686Z  * [new tag]         master-459e93c -> master-459e93c
+2026-11-27T00:29:10.6965565Z  * [new tag]         master-45a1b07 -> master-45a1b07
+2026-11-27T00:29:10.6966506Z  * [new tag]         master-46088f7 -> master-46088f7
+2026-11-27T00:29:10.6967287Z  * [new tag]         master-461ba9e -> master-461ba9e
+2026-11-27T00:29:10.6968025Z  * [new tag]         master-4640eff -> master-4640eff
+2026-11-27T00:29:10.6968736Z  * [new tag]         master-468ea24 -> master-468ea24
+2026-11-27T00:29:10.6969444Z  * [new tag]         master-46ef5b5 -> master-46ef5b5
+2026-11-27T00:29:10.6970142Z  * [new tag]         master-47f61aa -> master-47f61aa
+2026-11-27T00:29:10.6970873Z  * [new tag]         master-481044d -> master-481044d
+2026-11-27T00:29:10.6971650Z  * [new tag]         master-481f793 -> master-481f793
+2026-11-27T00:29:10.6972496Z  * [new tag]         master-483bab2 -> master-483bab2
+2026-11-27T00:29:10.6973266Z  * [new tag]         master-4870e45 -> master-4870e45
+2026-11-27T00:29:10.6974186Z  * [new tag]         master-489537e -> master-489537e
+2026-11-27T00:29:10.6974884Z  * [new tag]         master-4953e90 -> master-4953e90
+2026-11-27T00:29:10.6975575Z  * [new tag]         master-49e7cb5 -> master-49e7cb5
+2026-11-27T00:29:10.6976268Z  * [new tag]         master-4b8efff -> master-4b8efff
+2026-11-27T00:29:10.6976931Z  * [new tag]         master-4bfcc85 -> master-4bfcc85
+2026-11-27T00:29:10.6977589Z  * [new tag]         master-4de0334 -> master-4de0334
+2026-11-27T00:29:10.6978256Z  * [new tag]         master-4e7464e -> master-4e7464e
+2026-11-27T00:29:10.6978939Z  * [new tag]         master-4f0154b -> master-4f0154b
+2026-11-27T00:29:10.6979603Z  * [new tag]         master-4f06592 -> master-4f06592
+2026-11-27T00:29:10.6980324Z  * [new tag]         master-4f6b60c -> master-4f6b60c
+2026-11-27T00:29:10.6981293Z  * [new tag]         master-4f9c43e -> master-4f9c43e
+2026-11-27T00:29:10.6981778Z  * [new tag]         master-502a400 -> master-502a400
+2026-11-27T00:29:10.6982174Z  * [new tag]         master-50a8a2a -> master-50a8a2a
+2026-11-27T00:29:10.6982562Z  * [new tag]         master-50cb666 -> master-50cb666
+2026-11-27T00:29:10.6982949Z  * [new tag]         master-50fae10 -> master-50fae10
+2026-11-27T00:29:10.6983361Z  * [new tag]         master-513f861 -> master-513f861
+2026-11-27T00:29:10.6984006Z  * [new tag]         master-519c981 -> master-519c981
+2026-11-27T00:29:10.6984423Z  * [new tag]         master-5220a99 -> master-5220a99
+2026-11-27T00:29:10.6984820Z  * [new tag]         master-527b6fb -> master-527b6fb
+2026-11-27T00:29:10.6985208Z  * [new tag]         master-5290c38 -> master-5290c38
+2026-11-27T00:29:10.6985591Z  * [new tag]         master-53c8434 -> master-53c8434
+2026-11-27T00:29:10.6985974Z  * [new tag]         master-53dbba7 -> master-53dbba7
+2026-11-27T00:29:10.6986369Z  * [new tag]         master-53dc399 -> master-53dc399
+2026-11-27T00:29:10.6986765Z  * [new tag]         master-5488fb7 -> master-5488fb7
+2026-11-27T00:29:10.6987363Z  * [new tag]         master-54bb60e -> master-54bb60e
+2026-11-27T00:29:10.6987750Z  * [new tag]         master-54e3bc7 -> master-54e3bc7
+2026-11-27T00:29:10.6988442Z  * [new tag]         master-5517d6e -> master-5517d6e
+2026-11-27T00:29:10.6989137Z  * [new tag]         master-55390bc -> master-55390bc
+2026-11-27T00:29:10.6990234Z  * [new tag]         master-553fd4d -> master-553fd4d
+2026-11-27T00:29:10.6990721Z  * [new tag]         master-555275a -> master-555275a
+2026-11-27T00:29:10.6991129Z  * [new tag]         master-55bc5f0 -> master-55bc5f0
+2026-11-27T00:29:10.6991520Z  * [new tag]         master-563cdc3 -> master-563cdc3
+2026-11-27T00:29:10.6991932Z  * [new tag]         master-5656d10 -> master-5656d10
+2026-11-27T00:29:10.6992327Z  * [new tag]         master-56e659a -> master-56e659a
+2026-11-27T00:29:10.6992720Z  * [new tag]         master-5743ca8 -> master-5743ca8
+2026-11-27T00:29:10.6993111Z  * [new tag]         master-574406d -> master-574406d
+2026-11-27T00:29:10.6993520Z  * [new tag]         master-57921ca -> master-57921ca
+2026-11-27T00:29:10.6994305Z  * [new tag]         master-57cd694 -> master-57cd694
+2026-11-27T00:29:10.6994703Z  * [new tag]         master-585d91a -> master-585d91a
+2026-11-27T00:29:10.6995088Z  * [new tag]         master-58970a4 -> master-58970a4
+2026-11-27T00:29:10.6995483Z  * [new tag]         master-58b367c -> master-58b367c
+2026-11-27T00:29:10.6995874Z  * [new tag]         master-58e6c9f -> master-58e6c9f
+2026-11-27T00:29:10.6996255Z  * [new tag]         master-590250f -> master-590250f
+2026-11-27T00:29:10.6996640Z  * [new tag]         master-5a5aeb1 -> master-5a5aeb1
+2026-11-27T00:29:10.6997024Z  * [new tag]         master-5a5f8b1 -> master-5a5f8b1
+2026-11-27T00:29:10.6997412Z  * [new tag]         master-5a8c4f6 -> master-5a8c4f6
+2026-11-27T00:29:10.6997802Z  * [new tag]         master-5addcb1 -> master-5addcb1
+2026-11-27T00:29:10.6998203Z  * [new tag]         master-5af8e32 -> master-5af8e32
+2026-11-27T00:29:10.6998601Z  * [new tag]         master-5b2b2dc -> master-5b2b2dc
+2026-11-27T00:29:10.6998993Z  * [new tag]         master-5b351e9 -> master-5b351e9
+2026-11-27T00:29:10.6999392Z  * [new tag]         master-5b70e7d -> master-5b70e7d
+2026-11-27T00:29:10.6999801Z  * [new tag]         master-5b9ccaf -> master-5b9ccaf
+2026-11-27T00:29:10.7000205Z  * [new tag]         master-5bf2a27 -> master-5bf2a27
+2026-11-27T00:29:10.7000600Z  * [new tag]         master-5c19c70 -> master-5c19c70
+2026-11-27T00:29:10.7001002Z  * [new tag]         master-5c64a09 -> master-5c64a09
+2026-11-27T00:29:10.7001398Z  * [new tag]         master-5d5817c -> master-5d5817c
+2026-11-27T00:29:10.7002172Z  * [new tag]         master-5e9ff54 -> master-5e9ff54
+2026-11-27T00:29:10.7002958Z  * [new tag]         master-5ea4339 -> master-5ea4339
+2026-11-27T00:29:10.7003960Z  * [new tag]         master-5ec8dd5 -> master-5ec8dd5
+2026-11-27T00:29:10.7004780Z  * [new tag]         master-5ecff35 -> master-5ecff35
+2026-11-27T00:29:10.7005594Z  * [new tag]         master-5f631c2 -> master-5f631c2
+2026-11-27T00:29:10.7006394Z  * [new tag]         master-601a033 -> master-601a033
+2026-11-27T00:29:10.7007143Z  * [new tag]         master-604b8bd -> master-604b8bd
+2026-11-27T00:29:10.7007843Z  * [new tag]         master-60baff7 -> master-60baff7
+2026-11-27T00:29:10.7008551Z  * [new tag]         master-6232f2d -> master-6232f2d
+2026-11-27T00:29:10.7009262Z  * [new tag]         master-62959e7 -> master-62959e7
+2026-11-27T00:29:10.7009973Z  * [new tag]         master-62cfc54 -> master-62cfc54
+2026-11-27T00:29:10.7010767Z  * [new tag]         master-6381d4e -> master-6381d4e
+2026-11-27T00:29:10.7011570Z  * [new tag]         master-63d2046 -> master-63d2046
+2026-11-27T00:29:10.7012381Z  * [new tag]         master-6432aab -> master-6432aab
+2026-11-27T00:29:10.7013106Z  * [new tag]         master-6456a4e -> master-6456a4e
+2026-11-27T00:29:10.7014025Z  * [new tag]         master-6463955 -> master-6463955
+2026-11-27T00:29:10.7014725Z  * [new tag]         master-64cc19b -> master-64cc19b
+2026-11-27T00:29:10.7015655Z  * [new tag]         master-65bdd52 -> master-65bdd52
+2026-11-27T00:29:10.7016321Z  * [new tag]         master-6667401 -> master-6667401
+2026-11-27T00:29:10.7016962Z  * [new tag]         master-66841fd -> master-66841fd
+2026-11-27T00:29:10.7017630Z  * [new tag]         master-66874d4 -> master-66874d4
+2026-11-27T00:29:10.7018483Z  * [new tag]         master-66aab46 -> master-66aab46
+2026-11-27T00:29:10.7019155Z  * [new tag]         master-672dda1 -> master-672dda1
+2026-11-27T00:29:10.7019978Z  * [new tag]         master-6769e94 -> master-6769e94
+2026-11-27T00:29:10.7020869Z  * [new tag]         master-67c7779 -> master-67c7779
+2026-11-27T00:29:10.7021278Z  * [new tag]         master-684da25 -> master-684da25
+2026-11-27T00:29:10.7021671Z  * [new tag]         master-6979666 -> master-6979666
+2026-11-27T00:29:10.7022057Z  * [new tag]         master-6986c78 -> master-6986c78
+2026-11-27T00:29:10.7022456Z  * [new tag]         master-698efad -> master-698efad
+2026-11-27T00:29:10.7022872Z  * [new tag]         master-698f7b5 -> master-698f7b5
+2026-11-27T00:29:10.7023271Z  * [new tag]         master-699b1ad -> master-699b1ad
+2026-11-27T00:29:10.7023948Z  * [new tag]         master-69b34a0 -> master-69b34a0
+2026-11-27T00:29:10.7024376Z  * [new tag]         master-69b7402 -> master-69b7402
+2026-11-27T00:29:10.7024784Z  * [new tag]         master-69c9229 -> master-69c9229
+2026-11-27T00:29:10.7025183Z  * [new tag]         master-6a9661e -> master-6a9661e
+2026-11-27T00:29:10.7025580Z  * [new tag]         master-6b6dbc8 -> master-6b6dbc8
+2026-11-27T00:29:10.7025975Z  * [new tag]         master-6b8312e -> master-6b8312e
+2026-11-27T00:29:10.7026362Z  * [new tag]         master-6bc4400 -> master-6bc4400
+2026-11-27T00:29:10.7026807Z  * [new tag]         master-6c24870 -> master-6c24870
+2026-11-27T00:29:10.7027489Z  * [new tag]         master-6cbf9df -> master-6cbf9df
+2026-11-27T00:29:10.7028195Z  * [new tag]         master-6df1f59 -> master-6df1f59
+2026-11-27T00:29:10.7028953Z  * [new tag]         master-6e7cca4 -> master-6e7cca4
+2026-11-27T00:29:10.7029717Z  * [new tag]         master-6f1ee4b -> master-6f1ee4b
+2026-11-27T00:29:10.7030155Z  * [new tag]         master-6f79699 -> master-6f79699
+2026-11-27T00:29:10.7030609Z  * [new tag]         master-70269ca -> master-70269ca
+2026-11-27T00:29:10.7031017Z  * [new tag]         master-703ef9c -> master-703ef9c
+2026-11-27T00:29:10.7031448Z  * [new tag]         master-70f01cb -> master-70f01cb
+2026-11-27T00:29:10.7031847Z  * [new tag]         master-7242140 -> master-7242140
+2026-11-27T00:29:10.7032268Z  * [new tag]         master-7296c96 -> master-7296c96
+2026-11-27T00:29:10.7032696Z  * [new tag]         master-73643f5 -> master-73643f5
+2026-11-27T00:29:10.7033089Z  * [new tag]         master-738ace3 -> master-738ace3
+2026-11-27T00:29:10.7033477Z  * [new tag]         master-7487137 -> master-7487137
+2026-11-27T00:29:10.7034114Z  * [new tag]         master-74a6d92 -> master-74a6d92
+2026-11-27T00:29:10.7034517Z  * [new tag]         master-74d4cfa -> master-74d4cfa
+2026-11-27T00:29:10.7034913Z  * [new tag]         master-7513b7b -> master-7513b7b
+2026-11-27T00:29:10.7035295Z  * [new tag]         master-7552ac5 -> master-7552ac5
+2026-11-27T00:29:10.7035685Z  * [new tag]         master-7568d1a -> master-7568d1a
+2026-11-27T00:29:10.7036068Z  * [new tag]         master-76a8849 -> master-76a8849
+2026-11-27T00:29:10.7036458Z  * [new tag]         master-773ee24 -> master-773ee24
+2026-11-27T00:29:10.7036837Z  * [new tag]         master-777f42b -> master-777f42b
+2026-11-27T00:29:10.7037217Z  * [new tag]         master-7780e4f -> master-7780e4f
+2026-11-27T00:29:10.7037598Z  * [new tag]         master-77a7340 -> master-77a7340
+2026-11-27T00:29:10.7037978Z  * [new tag]         master-77efdf5 -> master-77efdf5
+2026-11-27T00:29:10.7038360Z  * [new tag]         master-78a3d13 -> master-78a3d13
+2026-11-27T00:29:10.7038744Z  * [new tag]         master-794db3e -> master-794db3e
+2026-11-27T00:29:10.7039134Z  * [new tag]         master-799fdc1 -> master-799fdc1
+2026-11-27T00:29:10.7039753Z  * [new tag]         master-79b2d5b -> master-79b2d5b
+2026-11-27T00:29:10.7040135Z  * [new tag]         master-79f634a -> master-79f634a
+2026-11-27T00:29:10.7040520Z  * [new tag]         master-7a32fcb -> master-7a32fcb
+2026-11-27T00:29:10.7040901Z  * [new tag]         master-7a74dee -> master-7a74dee
+2026-11-27T00:29:10.7041467Z  * [new tag]         master-7a87d31 -> master-7a87d31
+2026-11-27T00:29:10.7041850Z  * [new tag]         master-7a9b6c3 -> master-7a9b6c3
+2026-11-27T00:29:10.7042233Z  * [new tag]         master-7b8dbcb -> master-7b8dbcb
+2026-11-27T00:29:10.7042618Z  * [new tag]         master-7cdd30b -> master-7cdd30b
+2026-11-27T00:29:10.7043001Z  * [new tag]         master-7cf54e1 -> master-7cf54e1
+2026-11-27T00:29:10.7043383Z  * [new tag]         master-7d87381 -> master-7d87381
+2026-11-27T00:29:10.7043968Z  * [new tag]         master-7dabc66 -> master-7dabc66
+2026-11-27T00:29:10.7044381Z  * [new tag]         master-7e312f1 -> master-7e312f1
+2026-11-27T00:29:10.7044771Z  * [new tag]         master-7e4ea5b -> master-7e4ea5b
+2026-11-27T00:29:10.7045164Z  * [new tag]         master-7ee76e4 -> master-7ee76e4
+2026-11-27T00:29:10.7045542Z  * [new tag]         master-7f0e9a7 -> master-7f0e9a7
+2026-11-27T00:29:10.7045925Z  * [new tag]         master-7f4c5c6 -> master-7f4c5c6
+2026-11-27T00:29:10.7046311Z  * [new tag]         master-7f9753f -> master-7f9753f
+2026-11-27T00:29:10.7046705Z  * [new tag]         master-7fc50c0 -> master-7fc50c0
+2026-11-27T00:29:10.7047087Z  * [new tag]         master-7ff0dcd -> master-7ff0dcd
+2026-11-27T00:29:10.7047473Z  * [new tag]         master-7ff671e -> master-7ff671e
+2026-11-27T00:29:10.7047860Z  * [new tag]         master-800c963 -> master-800c963
+2026-11-27T00:29:10.7048241Z  * [new tag]         master-80da9b8 -> master-80da9b8
+2026-11-27T00:29:10.7048624Z  * [new tag]         master-81040f1 -> master-81040f1
+2026-11-27T00:29:10.7049006Z  * [new tag]         master-81844fb -> master-81844fb
+2026-11-27T00:29:10.7049387Z  * [new tag]         master-8207214 -> master-8207214
+2026-11-27T00:29:10.7049778Z  * [new tag]         master-83df563 -> master-83df563
+2026-11-27T00:29:10.7050169Z  * [new tag]         master-8432d4d -> master-8432d4d
+2026-11-27T00:29:10.7050548Z  * [new tag]         master-84525e7 -> master-84525e7
+2026-11-27T00:29:10.7050930Z  * [new tag]         master-84e09a7 -> master-84e09a7
+2026-11-27T00:29:10.7051319Z  * [new tag]         master-8520fc3 -> master-8520fc3
+2026-11-27T00:29:10.7051699Z  * [new tag]         master-857308d -> master-857308d
+2026-11-27T00:29:10.7052079Z  * [new tag]         master-8596af4 -> master-8596af4
+2026-11-27T00:29:10.7052463Z  * [new tag]         master-859fee6 -> master-859fee6
+2026-11-27T00:29:10.7052849Z  * [new tag]         master-8616ce0 -> master-8616ce0
+2026-11-27T00:29:10.7053238Z  * [new tag]         master-863f65e -> master-863f65e
+2026-11-27T00:29:10.7053797Z  * [new tag]         master-8687c1f -> master-8687c1f
+2026-11-27T00:29:10.7054196Z  * [new tag]         master-86aeb27 -> master-86aeb27
+2026-11-27T00:29:10.7054584Z  * [new tag]         master-86c3219 -> master-86c3219
+2026-11-27T00:29:10.7054965Z  * [new tag]         master-86c7571 -> master-86c7571
+2026-11-27T00:29:10.7055343Z  * [new tag]         master-872c365 -> master-872c365
+2026-11-27T00:29:10.7055722Z  * [new tag]         master-875086b -> master-875086b
+2026-11-27T00:29:10.7056110Z  * [new tag]         master-87a6f84 -> master-87a6f84
+2026-11-27T00:29:10.7056493Z  * [new tag]         master-884e7d7 -> master-884e7d7
+2026-11-27T00:29:10.7056873Z  * [new tag]         master-8944a13 -> master-8944a13
+2026-11-27T00:29:10.7057261Z  * [new tag]         master-8a0f867 -> master-8a0f867
+2026-11-27T00:29:10.7057645Z  * [new tag]         master-8a1756a -> master-8a1756a
+2026-11-27T00:29:10.7058026Z  * [new tag]         master-8a203f9 -> master-8a203f9
+2026-11-27T00:29:10.7058402Z  * [new tag]         master-8a88e58 -> master-8a88e58
+2026-11-27T00:29:10.7058782Z  * [new tag]         master-8ab8ba6 -> master-8ab8ba6
+2026-11-27T00:29:10.7059171Z  * [new tag]         master-8b67998 -> master-8b67998
+2026-11-27T00:29:10.7059705Z  * [new tag]         master-8c2ec5e -> master-8c2ec5e
+2026-11-27T00:29:10.7060093Z  * [new tag]         master-8c3ffc2 -> master-8c3ffc2
+2026-11-27T00:29:10.7060477Z  * [new tag]         master-8c9be35 -> master-8c9be35
+2026-11-27T00:29:10.7060858Z  * [new tag]         master-8cda5c9 -> master-8cda5c9
+2026-11-27T00:29:10.7061368Z  * [new tag]         master-8cf9f34 -> master-8cf9f34
+2026-11-27T00:29:10.7061750Z  * [new tag]         master-8d4a855 -> master-8d4a855
+2026-11-27T00:29:10.7062172Z  * [new tag]         master-8dae7ce -> master-8dae7ce
+2026-11-27T00:29:10.7062554Z  * [new tag]         master-8e4364f -> master-8e4364f
+2026-11-27T00:29:10.7062941Z  * [new tag]         master-905d87b -> master-905d87b
+2026-11-27T00:29:10.7063321Z  * [new tag]         master-9082b5d -> master-9082b5d
+2026-11-27T00:29:10.7063927Z  * [new tag]         master-90b19bd -> master-90b19bd
+2026-11-27T00:29:10.7064333Z  * [new tag]         master-90cc59d -> master-90cc59d
+2026-11-27T00:29:10.7064726Z  * [new tag]         master-91171b8 -> master-91171b8
+2026-11-27T00:29:10.7065109Z  * [new tag]         master-916a9ac -> master-916a9ac
+2026-11-27T00:29:10.7065493Z  * [new tag]         master-9190e8e -> master-9190e8e
+2026-11-27T00:29:10.7065874Z  * [new tag]         master-9225bae -> master-9225bae
+2026-11-27T00:29:10.7066269Z  * [new tag]         master-924dd22 -> master-924dd22
+2026-11-27T00:29:10.7066661Z  * [new tag]         master-9254920 -> master-9254920
+2026-11-27T00:29:10.7067043Z  * [new tag]         master-928480e -> master-928480e
+2026-11-27T00:29:10.7067428Z  * [new tag]         master-92a6e13 -> master-92a6e13
+2026-11-27T00:29:10.7067810Z  * [new tag]         master-93265e9 -> master-93265e9
+2026-11-27T00:29:10.7068190Z  * [new tag]         master-93356bd -> master-93356bd
+2026-11-27T00:29:10.7068569Z  * [new tag]         master-9361803 -> master-9361803
+2026-11-27T00:29:10.7068946Z  * [new tag]         master-939ad2d -> master-939ad2d
+2026-11-27T00:29:10.7069333Z  * [new tag]         master-9411288 -> master-9411288
+2026-11-27T00:29:10.7069708Z  * [new tag]         master-94c5652 -> master-94c5652
+2026-11-27T00:29:10.7070097Z  * [new tag]         master-9538524 -> master-9538524
+2026-11-27T00:29:10.7070479Z  * [new tag]         master-9560655 -> master-9560655
+2026-11-27T00:29:10.7070873Z  * [new tag]         master-957c8ae -> master-957c8ae
+2026-11-27T00:29:10.7071259Z  * [new tag]         master-95a6c59 -> master-95a6c59
+2026-11-27T00:29:10.7071645Z  * [new tag]         master-95ea26f -> master-95ea26f
+2026-11-27T00:29:10.7072030Z  * [new tag]         master-96f9c05 -> master-96f9c05
+2026-11-27T00:29:10.7072408Z  * [new tag]         master-9794052 -> master-9794052
+2026-11-27T00:29:10.7072785Z  * [new tag]         master-986b6ce -> master-986b6ce
+2026-11-27T00:29:10.7073170Z  * [new tag]         master-98ed165 -> master-98ed165
+2026-11-27T00:29:10.7073564Z  * [new tag]         master-99009e7 -> master-99009e7
+2026-11-27T00:29:10.7074148Z  * [new tag]         master-99c5b27 -> master-99c5b27
+2026-11-27T00:29:10.7074557Z  * [new tag]         master-99c5c9a -> master-99c5c9a
+2026-11-27T00:29:10.7074942Z  * [new tag]         master-99d29c0 -> master-99d29c0
+2026-11-27T00:29:10.7075322Z  * [new tag]         master-9b0a4d4 -> master-9b0a4d4
+2026-11-27T00:29:10.7075707Z  * [new tag]         master-9baf9ef -> master-9baf9ef
+2026-11-27T00:29:10.7076104Z  * [new tag]         master-9bee309 -> master-9bee309
+2026-11-27T00:29:10.7076491Z  * [new tag]         master-9ca4abe -> master-9ca4abe
+2026-11-27T00:29:10.7076882Z  * [new tag]         master-9cbc404 -> master-9cbc404
+2026-11-27T00:29:10.7077271Z  * [new tag]         master-9cbf50c -> master-9cbf50c
+2026-11-27T00:29:10.7077651Z  * [new tag]         master-9cf022a -> master-9cf022a
+2026-11-27T00:29:10.7078028Z  * [new tag]         master-9d0693b -> master-9d0693b
+2026-11-27T00:29:10.7078408Z  * [new tag]         master-9d23589 -> master-9d23589
+2026-11-27T00:29:10.7078784Z  * [new tag]         master-9d2382b -> master-9d2382b
+2026-11-27T00:29:10.7079318Z  * [new tag]         master-9daff41 -> master-9daff41
+2026-11-27T00:29:10.7079700Z  * [new tag]         master-9e17072 -> master-9e17072
+2026-11-27T00:29:10.7080084Z  * [new tag]         master-9e232f0 -> master-9e232f0
+2026-11-27T00:29:10.7080466Z  * [new tag]         master-9e4475f -> master-9e4475f
+2026-11-27T00:29:10.7080979Z  * [new tag]         master-9ecb30f -> master-9ecb30f
+2026-11-27T00:29:10.7081363Z  * [new tag]         master-9f8dbc4 -> master-9f8dbc4
+2026-11-27T00:29:10.7081746Z  * [new tag]         master-9ff334f -> master-9ff334f
+2026-11-27T00:29:10.7082126Z  * [new tag]         master-a09f919 -> master-a09f919
+2026-11-27T00:29:10.7082506Z  * [new tag]         master-a113689 -> master-a113689
+2026-11-27T00:29:10.7082890Z  * [new tag]         master-a140219 -> master-a140219
+2026-11-27T00:29:10.7083266Z  * [new tag]         master-a192860 -> master-a192860
+2026-11-27T00:29:10.7083837Z  * [new tag]         master-a316a42 -> master-a316a42
+2026-11-27T00:29:10.7084250Z  * [new tag]         master-a3a2a0e -> master-a3a2a0e
+2026-11-27T00:29:10.7084656Z  * [new tag]         master-a3b85b2 -> master-a3b85b2
+2026-11-27T00:29:10.7085043Z  * [new tag]         master-a4755cf -> master-a4755cf
+2026-11-27T00:29:10.7085428Z  * [new tag]         master-a5c42c4 -> master-a5c42c4
+2026-11-27T00:29:10.7085828Z  * [new tag]         master-a5d30b1 -> master-a5d30b1
+2026-11-27T00:29:10.7086215Z  * [new tag]         master-a670464 -> master-a670464
+2026-11-27T00:29:10.7086596Z  * [new tag]         master-a6bdc47 -> master-a6bdc47
+2026-11-27T00:29:10.7086982Z  * [new tag]         master-a73ccf1 -> master-a73ccf1
+2026-11-27T00:29:10.7087365Z  * [new tag]         master-a791a68 -> master-a791a68
+2026-11-27T00:29:10.7087788Z  * [new tag]         master-a7e20ed -> master-a7e20ed
+2026-11-27T00:29:10.7088173Z  * [new tag]         master-a814d04 -> master-a814d04
+2026-11-27T00:29:10.7088556Z  * [new tag]         master-a84ab1d -> master-a84ab1d
+2026-11-27T00:29:10.7088945Z  * [new tag]         master-a872a2b -> master-a872a2b
+2026-11-27T00:29:10.7089328Z  * [new tag]         master-a940458 -> master-a940458
+2026-11-27T00:29:10.7089708Z  * [new tag]         master-a9559bf -> master-a9559bf
+2026-11-27T00:29:10.7090088Z  * [new tag]         master-aa485ce -> master-aa485ce
+2026-11-27T00:29:10.7090474Z  * [new tag]         master-aacdbd4 -> master-aacdbd4
+2026-11-27T00:29:10.7090867Z  * [new tag]         master-aaf3b23 -> master-aaf3b23
+2026-11-27T00:29:10.7091258Z  * [new tag]         master-ab0e26b -> master-ab0e26b
+2026-11-27T00:29:10.7091638Z  * [new tag]         master-ac0cd25 -> master-ac0cd25
+2026-11-27T00:29:10.7092018Z  * [new tag]         master-ac3b886 -> master-ac3b886
+2026-11-27T00:29:10.7092396Z  * [new tag]         master-ac7876a -> master-ac7876a
+2026-11-27T00:29:10.7092783Z  * [new tag]         master-acc111c -> master-acc111c
+2026-11-27T00:29:10.7093177Z  * [new tag]         master-acfc547 -> master-acfc547
+2026-11-27T00:29:10.7093561Z  * [new tag]         master-ad072fc -> master-ad072fc
+2026-11-27T00:29:10.7094172Z  * [new tag]         master-ad5fd5b -> master-ad5fd5b
+2026-11-27T00:29:10.7094568Z  * [new tag]         master-ae178ab -> master-ae178ab
+2026-11-27T00:29:10.7094953Z  * [new tag]         master-ae44e23 -> master-ae44e23
+2026-11-27T00:29:10.7095345Z  * [new tag]         master-ae9663f -> master-ae9663f
+2026-11-27T00:29:10.7095747Z  * [new tag]         master-afd220d -> master-afd220d
+2026-11-27T00:29:10.7096136Z  * [new tag]         master-affc76e -> master-affc76e
+2026-11-27T00:29:10.7096521Z  * [new tag]         master-b061ba9 -> master-b061ba9
+2026-11-27T00:29:10.7096901Z  * [new tag]         master-b19edd5 -> master-b19edd5
+2026-11-27T00:29:10.7097286Z  * [new tag]         master-b1ee8f5 -> master-b1ee8f5
+2026-11-27T00:29:10.7097666Z  * [new tag]         master-b1f4290 -> master-b1f4290
+2026-11-27T00:29:10.7098049Z  * [new tag]         master-b241649 -> master-b241649
+2026-11-27T00:29:10.7098428Z  * [new tag]         master-b24c304 -> master-b24c304
+2026-11-27T00:29:10.7098961Z  * [new tag]         master-b391579 -> master-b391579
+2026-11-27T00:29:10.7099349Z  * [new tag]         master-b3f138d -> master-b3f138d
+2026-11-27T00:29:10.7099727Z  * [new tag]         master-b3f460e -> master-b3f460e
+2026-11-27T00:29:10.7100103Z  * [new tag]         master-b41b4ca -> master-b41b4ca
+2026-11-27T00:29:10.7100607Z  * [new tag]         master-b47b8a9 -> master-b47b8a9
+2026-11-27T00:29:10.7100992Z  * [new tag]         master-b4c6f46 -> master-b4c6f46
+2026-11-27T00:29:10.7101372Z  * [new tag]         master-b50b570 -> master-b50b570
+2026-11-27T00:29:10.7101749Z  * [new tag]         master-b51c717 -> master-b51c717
+2026-11-27T00:29:10.7102126Z  * [new tag]         master-b5472ea -> master-b5472ea
+2026-11-27T00:29:10.7102505Z  * [new tag]         master-b5c9295 -> master-b5c9295
+2026-11-27T00:29:10.7102893Z  * [new tag]         master-b5fe67f -> master-b5fe67f
+2026-11-27T00:29:10.7103275Z  * [new tag]         master-b6e7f9b -> master-b6e7f9b
+2026-11-27T00:29:10.7103854Z  * [new tag]         master-b764743 -> master-b764743
+2026-11-27T00:29:10.7104281Z  * [new tag]         master-b772bba -> master-b772bba
+2026-11-27T00:29:10.7104664Z  * [new tag]         master-b853d45 -> master-b853d45
+2026-11-27T00:29:10.7105047Z  * [new tag]         master-b8ad1b6 -> master-b8ad1b6
+2026-11-27T00:29:10.7105431Z  * [new tag]         master-b8c8dda -> master-b8c8dda
+2026-11-27T00:29:10.7105818Z  * [new tag]         master-b8ee340 -> master-b8ee340
+2026-11-27T00:29:10.7106204Z  * [new tag]         master-b922bc3 -> master-b922bc3
+2026-11-27T00:29:10.7106590Z  * [new tag]         master-b925f1f -> master-b925f1f
+2026-11-27T00:29:10.7106972Z  * [new tag]         master-b97ca43 -> master-b97ca43
+2026-11-27T00:29:10.7107354Z  * [new tag]         master-b9b7d94 -> master-b9b7d94
+2026-11-27T00:29:10.7107734Z  * [new tag]         master-b9fd7ee -> master-b9fd7ee
+2026-11-27T00:29:10.7108122Z  * [new tag]         master-ba4e85a -> master-ba4e85a
+2026-11-27T00:29:10.7108504Z  * [new tag]         master-bac6699 -> master-bac6699
+2026-11-27T00:29:10.7108900Z  * [new tag]         master-bb051d9 -> master-bb051d9
+2026-11-27T00:29:10.7109287Z  * [new tag]         master-bbca06e -> master-bbca06e
+2026-11-27T00:29:10.7109666Z  * [new tag]         master-bbef282 -> master-bbef282
+2026-11-27T00:29:10.7110062Z  * [new tag]         master-bd34cdd -> master-bd34cdd
+2026-11-27T00:29:10.7110456Z  * [new tag]         master-bda4d7c -> master-bda4d7c
+2026-11-27T00:29:10.7110839Z  * [new tag]         master-be2301b -> master-be2301b
+2026-11-27T00:29:10.7111220Z  * [new tag]         master-be87b6e -> master-be87b6e
+2026-11-27T00:29:10.7111602Z  * [new tag]         master-bed9275 -> master-bed9275
+2026-11-27T00:29:10.7111983Z  * [new tag]         master-bf4b22f -> master-bf4b22f
+2026-11-27T00:29:10.7112406Z  * [new tag]         master-bf83bff -> master-bf83bff
+2026-11-27T00:29:10.7112792Z  * [new tag]         master-c0bb1d3 -> master-c0bb1d3
+2026-11-27T00:29:10.7113173Z  * [new tag]         master-c12b14b -> master-c12b14b
+2026-11-27T00:29:10.7113562Z  * [new tag]         master-c1f8850 -> master-c1f8850
+2026-11-27T00:29:10.7114203Z  * [new tag]         master-c238b58 -> master-c238b58
+2026-11-27T00:29:10.7114589Z  * [new tag]         master-c2a08f8 -> master-c2a08f8
+2026-11-27T00:29:10.7114980Z  * [new tag]         master-c2b25b6 -> master-c2b25b6
+2026-11-27T00:29:10.7115372Z  * [new tag]         master-c2df36d -> master-c2df36d
+2026-11-27T00:29:10.7115753Z  * [new tag]         master-c36e81d -> master-c36e81d
+2026-11-27T00:29:10.7116131Z  * [new tag]         master-c3ac702 -> master-c3ac702
+2026-11-27T00:29:10.7116508Z  * [new tag]         master-c3ca7a5 -> master-c3ca7a5
+2026-11-27T00:29:10.7116887Z  * [new tag]         master-c494ed5 -> master-c494ed5
+2026-11-27T00:29:10.7117273Z  * [new tag]         master-c4f89d8 -> master-c4f89d8
+2026-11-27T00:29:10.7117652Z  * [new tag]         master-c4fe84f -> master-c4fe84f
+2026-11-27T00:29:10.7118034Z  * [new tag]         master-c50b628 -> master-c50b628
+2026-11-27T00:29:10.7118409Z  * [new tag]         master-c56b715 -> master-c56b715
+2026-11-27T00:29:10.7118945Z  * [new tag]         master-c5aa5e5 -> master-c5aa5e5
+2026-11-27T00:29:10.7119327Z  * [new tag]         master-c5d70f5 -> master-c5d70f5
+2026-11-27T00:29:10.7119706Z  * [new tag]         master-c63bb1d -> master-c63bb1d
+2026-11-27T00:29:10.7120088Z  * [new tag]         master-c798308 -> master-c798308
+2026-11-27T00:29:10.7120597Z  * [new tag]         master-c824d2e -> master-c824d2e
+2026-11-27T00:29:10.7120981Z  * [new tag]         master-c85e03d -> master-c85e03d
+2026-11-27T00:29:10.7121358Z  * [new tag]         master-c8c2c52 -> master-c8c2c52
+2026-11-27T00:29:10.7121740Z  * [new tag]         master-c9a59b7 -> master-c9a59b7
+2026-11-27T00:29:10.7122120Z  * [new tag]         master-c9c74b4 -> master-c9c74b4
+2026-11-27T00:29:10.7122498Z  * [new tag]         master-c9e2c26 -> master-c9e2c26
+2026-11-27T00:29:10.7122879Z  * [new tag]         master-ca74884 -> master-ca74884
+2026-11-27T00:29:10.7123259Z  * [new tag]         master-ca7c3f4 -> master-ca7c3f4
+2026-11-27T00:29:10.7123850Z  * [new tag]         master-cb1c072 -> master-cb1c072
+2026-11-27T00:29:10.7124266Z  * [new tag]         master-cb40dfc -> master-cb40dfc
+2026-11-27T00:29:10.7124665Z  * [new tag]         master-cbebf61 -> master-cbebf61
+2026-11-27T00:29:10.7125061Z  * [new tag]         master-cc0bb72 -> master-cc0bb72
+2026-11-27T00:29:10.7125467Z  * [new tag]         master-cc9cee8 -> master-cc9cee8
+2026-11-27T00:29:10.7125874Z  * [new tag]         master-cd7fa95 -> master-cd7fa95
+2026-11-27T00:29:10.7126261Z  * [new tag]         master-ce2c7d7 -> master-ce2c7d7
+2026-11-27T00:29:10.7126649Z  * [new tag]         master-cea1c85 -> master-cea1c85
+2026-11-27T00:29:10.7127036Z  * [new tag]         master-ced2319 -> master-ced2319
+2026-11-27T00:29:10.7127421Z  * [new tag]         master-cf267d1 -> master-cf267d1
+2026-11-27T00:29:10.7127807Z  * [new tag]         master-cf348a6 -> master-cf348a6
+2026-11-27T00:29:10.7128190Z  * [new tag]         master-cf658ad -> master-cf658ad
+2026-11-27T00:29:10.7128591Z  * [new tag]         master-d01bccd -> master-d01bccd
+2026-11-27T00:29:10.7128978Z  * [new tag]         master-d0aaff5 -> master-d0aaff5
+2026-11-27T00:29:10.7129366Z  * [new tag]         master-d1f563a -> master-d1f563a
+2026-11-27T00:29:10.7129745Z  * [new tag]         master-d2a4366 -> master-d2a4366
+2026-11-27T00:29:10.7130126Z  * [new tag]         master-d2c59b8 -> master-d2c59b8
+2026-11-27T00:29:10.7130513Z  * [new tag]         master-d3494bb -> master-d3494bb
+2026-11-27T00:29:10.7130889Z  * [new tag]         master-d3f202d -> master-d3f202d
+2026-11-27T00:29:10.7131277Z  * [new tag]         master-d40fded -> master-d40fded
+2026-11-27T00:29:10.7131658Z  * [new tag]         master-d411968 -> master-d411968
+2026-11-27T00:29:10.7132035Z  * [new tag]         master-d502bc7 -> master-d502bc7
+2026-11-27T00:29:10.7132414Z  * [new tag]         master-d5512b7 -> master-d5512b7
+2026-11-27T00:29:10.7132791Z  * [new tag]         master-d5850c5 -> master-d5850c5
+2026-11-27T00:29:10.7133171Z  * [new tag]         master-d5b111f -> master-d5b111f
+2026-11-27T00:29:10.7133559Z  * [new tag]         master-d75561d -> master-d75561d
+2026-11-27T00:29:10.7134176Z  * [new tag]         master-d783f79 -> master-d783f79
+2026-11-27T00:29:10.7134562Z  * [new tag]         master-d7d2e6a -> master-d7d2e6a
+2026-11-27T00:29:10.7134951Z  * [new tag]         master-d7def1a -> master-d7def1a
+2026-11-27T00:29:10.7135337Z  * [new tag]         master-d924522 -> master-d924522
+2026-11-27T00:29:10.7135717Z  * [new tag]         master-d990e3f -> master-d990e3f
+2026-11-27T00:29:10.7136096Z  * [new tag]         master-d9a239c -> master-d9a239c
+2026-11-27T00:29:10.7136474Z  * [new tag]         master-da18898 -> master-da18898
+2026-11-27T00:29:10.7136855Z  * [new tag]         master-da5303c -> master-da5303c
+2026-11-27T00:29:10.7137236Z  * [new tag]         master-db10808 -> master-db10808
+2026-11-27T00:29:10.7137617Z  * [new tag]         master-db4047a -> master-db4047a
+2026-11-27T00:29:10.7137999Z  * [new tag]         master-dc271c5 -> master-dc271c5
+2026-11-27T00:29:10.7138545Z  * [new tag]         master-dcb2ed4 -> master-dcb2ed4
+2026-11-27T00:29:10.7138930Z  * [new tag]         master-dcdd65e -> master-dcdd65e
+2026-11-27T00:29:10.7139317Z  * [new tag]         master-dd0eabc -> master-dd0eabc
+2026-11-27T00:29:10.7139705Z  * [new tag]         master-dd7eff5 -> master-dd7eff5
+2026-11-27T00:29:10.7140205Z  * [new tag]         master-deb7dfc -> master-deb7dfc
+2026-11-27T00:29:10.7140597Z  * [new tag]         master-dfd9fce -> master-dfd9fce
+2026-11-27T00:29:10.7140981Z  * [new tag]         master-e0305ea -> master-e0305ea
+2026-11-27T00:29:10.7141363Z  * [new tag]         master-e129551 -> master-e129551
+2026-11-27T00:29:10.7141745Z  * [new tag]         master-e216aa0 -> master-e216aa0
+2026-11-27T00:29:10.7142128Z  * [new tag]         master-e2cd506 -> master-e2cd506
+2026-11-27T00:29:10.7142504Z  * [new tag]         master-e308fb0 -> master-e308fb0
+2026-11-27T00:29:10.7142884Z  * [new tag]         master-e32089b -> master-e32089b
+2026-11-27T00:29:10.7143276Z  * [new tag]         master-e4412b4 -> master-e4412b4
+2026-11-27T00:29:10.7143871Z  * [new tag]         master-e4422e2 -> master-e4422e2
+2026-11-27T00:29:10.7144304Z  * [new tag]         master-e4caa8d -> master-e4caa8d
+2026-11-27T00:29:10.7144700Z  * [new tag]         master-e4cf982 -> master-e4cf982
+2026-11-27T00:29:10.7145084Z  * [new tag]         master-e59fcb2 -> master-e59fcb2
+2026-11-27T00:29:10.7145480Z  * [new tag]         master-e5ab32a -> master-e5ab32a
+2026-11-27T00:29:10.7145874Z  * [new tag]         master-e6a46b0 -> master-e6a46b0
+2026-11-27T00:29:10.7146257Z  * [new tag]         master-e6c9e09 -> master-e6c9e09
+2026-11-27T00:29:10.7146640Z  * [new tag]         master-e76d630 -> master-e76d630
+2026-11-27T00:29:10.7147015Z  * [new tag]         master-e7f6997 -> master-e7f6997
+2026-11-27T00:29:10.7147392Z  * [new tag]         master-e7fe66e -> master-e7fe66e
+2026-11-27T00:29:10.7147766Z  * [new tag]         master-e8035f1 -> master-e8035f1
+2026-11-27T00:29:10.7148148Z  * [new tag]         master-e899bf5 -> master-e899bf5
+2026-11-27T00:29:10.7148535Z  * [new tag]         master-e8c0516 -> master-e8c0516
+2026-11-27T00:29:10.7148916Z  * [new tag]         master-e95b655 -> master-e95b655
+2026-11-27T00:29:10.7149304Z  * [new tag]         master-e986f94 -> master-e986f94
+2026-11-27T00:29:10.7149685Z  * [new tag]         master-e9b12c3 -> master-e9b12c3
+2026-11-27T00:29:10.7150074Z  * [new tag]         master-ea04a4c -> master-ea04a4c
+2026-11-27T00:29:10.7150470Z  * [new tag]         master-ea10d3d -> master-ea10d3d
+2026-11-27T00:29:10.7150856Z  * [new tag]         master-ea3a0ad -> master-ea3a0ad
+2026-11-27T00:29:10.7151237Z  * [new tag]         master-ea60007 -> master-ea60007
+2026-11-27T00:29:10.7151614Z  * [new tag]         master-eaa6ca5 -> master-eaa6ca5
+2026-11-27T00:29:10.7151998Z  * [new tag]         master-eb17a02 -> master-eb17a02
+2026-11-27T00:29:10.7152380Z  * [new tag]         master-eb542d3 -> master-eb542d3
+2026-11-27T00:29:10.7152773Z  * [new tag]         master-ec2e10c -> master-ec2e10c
+2026-11-27T00:29:10.7153165Z  * [new tag]         master-ec326d3 -> master-ec326d3
+2026-11-27T00:29:10.7153545Z  * [new tag]         master-ec728e4 -> master-ec728e4
+2026-11-27T00:29:10.7154159Z  * [new tag]         master-ec9cdb6 -> master-ec9cdb6
+2026-11-27T00:29:10.7154548Z  * [new tag]         master-ecb217d -> master-ecb217d
+2026-11-27T00:29:10.7154936Z  * [new tag]         master-ecbe466 -> master-ecbe466
+2026-11-27T00:29:10.7155317Z  * [new tag]         master-ed3c680 -> master-ed3c680
+2026-11-27T00:29:10.7155704Z  * [new tag]         master-ed9a54e -> master-ed9a54e
+2026-11-27T00:29:10.7156090Z  * [new tag]         master-ee0c40d -> master-ee0c40d
+2026-11-27T00:29:10.7156483Z  * [new tag]         master-ee1b497 -> master-ee1b497
+2026-11-27T00:29:10.7156868Z  * [new tag]         master-ee77efe -> master-ee77efe
+2026-11-27T00:29:10.7157254Z  * [new tag]         master-ee96541 -> master-ee96541
+2026-11-27T00:29:10.7157635Z  * [new tag]         master-eeaa7b0 -> master-eeaa7b0
+2026-11-27T00:29:10.7158178Z  * [new tag]         master-ef3171d -> master-ef3171d
+2026-11-27T00:29:10.7158560Z  * [new tag]         master-ef3f333 -> master-ef3f333
+2026-11-27T00:29:10.7158952Z  * [new tag]         master-efd0564 -> master-efd0564
+2026-11-27T00:29:10.7159332Z  * [new tag]         master-efe0507 -> master-efe0507
+2026-11-27T00:29:10.7159715Z  * [new tag]         master-f048af0 -> master-f048af0
+2026-11-27T00:29:10.7160224Z  * [new tag]         master-f0d70f1 -> master-f0d70f1
+2026-11-27T00:29:10.7160602Z  * [new tag]         master-f121705 -> master-f121705
+2026-11-27T00:29:10.7160984Z  * [new tag]         master-f202ada -> master-f202ada
+2026-11-27T00:29:10.7161365Z  * [new tag]         master-f257fd2 -> master-f257fd2
+2026-11-27T00:29:10.7161745Z  * [new tag]         master-f266259 -> master-f266259
+2026-11-27T00:29:10.7162128Z  * [new tag]         master-f2c754e -> master-f2c754e
+2026-11-27T00:29:10.7162512Z  * [new tag]         master-f2d1c47 -> master-f2d1c47
+2026-11-27T00:29:10.7162897Z  * [new tag]         master-f31b539 -> master-f31b539
+2026-11-27T00:29:10.7163297Z  * [new tag]         master-f3c3b4b -> master-f3c3b4b
+2026-11-27T00:29:10.7163887Z  * [new tag]         master-f3d4edf -> master-f3d4edf
+2026-11-27T00:29:10.7164296Z  * [new tag]         master-f4cef87 -> master-f4cef87
+2026-11-27T00:29:10.7164689Z  * [new tag]         master-f4d277a -> master-f4d277a
+2026-11-27T00:29:10.7165079Z  * [new tag]         master-f514d1b -> master-f514d1b
+2026-11-27T00:29:10.7165460Z  * [new tag]         master-f5a77a6 -> master-f5a77a6
+2026-11-27T00:29:10.7165839Z  * [new tag]         master-f5bfea0 -> master-f5bfea0
+2026-11-27T00:29:10.7166216Z  * [new tag]         master-f647ce0 -> master-f647ce0
+2026-11-27T00:29:10.7166594Z  * [new tag]         master-f64d44a -> master-f64d44a
+2026-11-27T00:29:10.7166978Z  * [new tag]         master-f7d0509 -> master-f7d0509
+2026-11-27T00:29:10.7167357Z  * [new tag]         master-f7d278f -> master-f7d278f
+2026-11-27T00:29:10.7167746Z  * [new tag]         master-f7dc43b -> master-f7dc43b
+2026-11-27T00:29:10.7168139Z  * [new tag]         master-f954edd -> master-f954edd
+2026-11-27T00:29:10.7168519Z  * [new tag]         master-f9a6364 -> master-f9a6364
+2026-11-27T00:29:10.7168897Z  * [new tag]         master-fa84c4b -> master-fa84c4b
+2026-11-27T00:29:10.7169277Z  * [new tag]         master-fab49c6 -> master-fab49c6
+2026-11-27T00:29:10.7169666Z  * [new tag]         master-fb62f92 -> master-fb62f92
+2026-11-27T00:29:10.7170047Z  * [new tag]         master-fbd4d38 -> master-fbd4d38
+2026-11-27T00:29:10.7170430Z  * [new tag]         master-fc8ef54 -> master-fc8ef54
+2026-11-27T00:29:10.7170818Z  * [new tag]         master-ff5d58f -> master-ff5d58f
+2026-11-27T00:29:10.7171202Z  * [new tag]         master-ff966e7 -> master-ff966e7
+2026-11-27T00:29:10.7171581Z  * [new tag]         master-ffb06a3 -> master-ffb06a3
+2026-11-27T00:29:10.7171962Z  * [new tag]         master-fff0e0e -> master-fff0e0e
+2026-11-27T00:29:10.7173844Z ##[endgroup]
+2026-11-27T00:29:10.7174334Z ##[group]Determining the checkout info
+2026-11-27T00:29:10.7174784Z [command]/usr/bin/git branch --list --remote origin/master
+2026-11-27T00:29:10.7175173Z   origin/master
+2026-11-27T00:29:10.7175945Z ##[endgroup]
+2026-11-27T00:29:10.7176243Z [command]/usr/bin/git sparse-checkout disable
+2026-11-27T00:29:10.7177092Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-27T00:29:10.7178115Z ##[group]Checking out the ref
+2026-11-27T00:29:10.7178593Z [command]/usr/bin/git checkout --progress --force -B master refs/remotes/origin/master
+2026-11-27T00:29:11.4733485Z Reset branch 'master'
+2026-11-27T00:29:11.4735478Z branch 'master' set up to track 'origin/master'.
+2026-11-27T00:29:11.4770552Z ##[endgroup]
+2026-11-27T00:29:11.4825045Z [command]/usr/bin/git log -1 --format=%H
+2026-11-27T00:29:11.4854725Z a07831a0081f00077b3cf676514c45e34167126c

@@ -60,18 +60,32 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install NDK r28c (16KB page size), CMake & Build Tools
+      - name: Setup Android SDK, NDK r28c (16KB) & CMake
+        shell: bash
         run: |
-          yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager \
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "ANDROID_HOME=${SDK_ROOT}" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=${SDK_ROOT}" >> "$GITHUB_ENV"
+
+          SDKMANAGER="${SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="$(command -v sdkmanager)"
+          fi
+
+          echo "${SDK_ROOT}/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "${SDK_ROOT}/platform-tools" >> "$GITHUB_PATH"
+
+          set +o pipefail
+          yes | "$SDKMANAGER" --sdk_root="${SDK_ROOT}" --licenses > /dev/null
+          set -o pipefail
+
+          "$SDKMANAGER" --sdk_root="${SDK_ROOT}" --install \
+            "platform-tools" \
             "platforms;${ANDROID_PLATFORM_VERSION}" \
+            "platforms;android-36.1" \
             "build-tools;${ANDROID_BUILD_TOOLS_VERSION}" \
             "ndk;${ANDROID_NDK_VERSION}" \
             "cmake;${CMAKE_VERSION}"
-          sdkmanager "platforms;android-36.1" || true
 
       - name: Setup Gradle 9.3.1
         uses: gradle/actions/setup-gradle@v4

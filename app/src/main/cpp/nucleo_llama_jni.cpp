@@ -229,6 +229,11 @@ Java_com_example_engine_LlamaCppNativeBridge_nativeGenerateStream(
         return -1;
     }
 
+    if (callback == nullptr) {
+        LOGE("Callback nulo em nativeGenerateStream");
+        return -2;
+    }
+
     jclass cb_cls = env->GetObjectClass(callback);
     jmethodID on_token_method = env->GetMethodID(cb_cls, "onTokenBytes", "([B)V");
     env->DeleteLocalRef(cb_cls);
@@ -336,7 +341,7 @@ Java_com_example_engine_LlamaCppNativeBridge_nativeGenerateStream(
         return -3;
     }
 
-    if (n_prompt_tokens >= n_ctx - 16) {
+    if (n_prompt_tokens >= n_ctx - 40) {
         // Trunca início preservando o final mais recente para caber na janela de contexto
         const int32_t keep = std::max(64, n_ctx / 2);
         prompt_tokens.erase(prompt_tokens.begin(), prompt_tokens.end() - std::min<int32_t>(keep, n_prompt_tokens));
@@ -367,7 +372,8 @@ Java_com_example_engine_LlamaCppNativeBridge_nativeGenerateStream(
         llama_sampler_chain_add(smpl, llama_sampler_init_dist(LLAMA_DEFAULT_SEED));
     }
 
-    const int32_t safe_max_tokens = std::clamp(static_cast<int32_t>(max_tokens), 32, n_ctx - n_prompt_tokens - 4);
+    const int32_t available_gen = std::max(32, n_ctx - n_prompt_tokens - 4);
+    const int32_t safe_max_tokens = std::clamp(static_cast<int32_t>(max_tokens), 32, available_gen);
     int32_t generated_count = 0;
     std::string pending_utf8;
     std::vector<char> piece_buf(256);

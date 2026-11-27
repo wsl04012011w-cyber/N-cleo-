@@ -1,0 +1,35 @@
+﻿2026-11-27T00:29:11.5085792Z ##[group]Run actions/setup-java@v4
+2026-11-27T00:29:11.5086276Z with:
+2026-11-27T00:29:11.5086574Z   distribution: temurin
+2026-11-27T00:29:11.5087158Z   java-version: 17
+2026-11-27T00:29:11.5087468Z   java-package: jdk
+2026-11-27T00:29:11.5100654Z   check-latest: false
+2026-11-27T00:29:11.5100936Z   server-id: github
+2026-11-27T00:29:11.5101182Z   server-username: GITHUB_ACTOR
+2026-11-27T00:29:11.5101447Z   server-password: GITHUB_TOKEN
+2026-11-27T00:29:11.5101702Z   overwrite-settings: true
+2026-11-27T00:29:11.5101928Z   job-status: success
+2026-11-27T00:29:11.5104657Z   token: ***
+2026-11-27T00:29:11.5104865Z env:
+2026-11-27T00:29:11.5105057Z   ANDROID_NDK_VERSION: 28.2.13676358
+2026-11-27T00:29:11.5105314Z   CMAKE_VERSION: 3.31.6
+2026-11-27T00:29:11.5105548Z   ANDROID_PLATFORM_VERSION: android-36
+2026-11-27T00:29:11.5105821Z   ANDROID_BUILD_TOOLS_VERSION: 36.0.0
+2026-11-27T00:29:11.5106068Z ##[endgroup]
+2026-11-27T00:29:11.6872714Z ##[warning]setup-java v4 is deprecated and will no longer receive updates. Please migrate to actions/setup-java@v5.
+2026-11-27T00:29:11.6884357Z ##[group]Installed distributions
+2026-11-27T00:29:11.6919681Z Resolved Java 17.0.21+2 from tool-cache
+2026-11-27T00:29:11.6920248Z Setting Java 17.0.21+2 as the default
+2026-11-27T00:29:11.6930525Z (node:2583) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-27T00:29:11.6931418Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-27T00:29:11.6934883Z Creating toolchains.xml for JDK version 17 from temurin
+2026-11-27T00:29:11.7012117Z Writing to /home/runner/.m2/toolchains.xml
+2026-11-27T00:29:11.7012691Z 
+2026-11-27T00:29:11.7012932Z Java configuration:
+2026-11-27T00:29:11.7014227Z   Distribution: temurin
+2026-11-27T00:29:11.7016191Z   Version: 17.0.21+2
+2026-11-27T00:29:11.7016747Z   Path: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.21-2/x64
+2026-11-27T00:29:11.7017236Z 
+2026-11-27T00:29:11.7017608Z ##[endgroup]
+2026-11-27T00:29:11.7036231Z Creating settings.xml with server-id: github
+2026-11-27T00:29:11.7063472Z Writing to /home/runner/.m2/settings.xml

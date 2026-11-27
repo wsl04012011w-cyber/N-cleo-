@@ -1,0 +1,37 @@
+﻿2026-11-27T00:29:03.3914861Z Current runner version: '2.338.2'
+2026-11-27T00:29:03.3953180Z ##[group]Runner Image Provisioner
+2026-11-27T00:29:03.3954801Z Hosted Compute Agent
+2026-11-27T00:29:03.3956096Z Version: 20261111.635
+2026-11-27T00:29:03.3957270Z Commit: b8a594ea514ff44cadb5342986c68b1eac6e22ed
+2026-11-27T00:29:03.3958889Z Build Date: 2026-11-11T01:49:01Z
+2026-11-27T00:29:03.3960129Z Worker ID: {e87c3c45-7c2a-42f0-83fd-5128feccf190}
+2026-11-27T00:29:03.3961398Z Region: eastus2
+2026-11-27T00:29:03.3962490Z Cloud: Azure
+2026-11-27T00:29:03.3963448Z ##[endgroup]
+2026-11-27T00:29:03.3966389Z ##[group]Operating System
+2026-11-27T00:29:03.3967491Z Ubuntu
+2026-11-27T00:29:03.3968523Z 26.04.1
+2026-11-27T00:29:03.3969456Z LTS
+2026-11-27T00:29:03.3970344Z ##[endgroup]
+2026-11-27T00:29:03.3971524Z ##[group]Runner Image
+2026-11-27T00:29:03.3972605Z Image: ubuntu-26.04
+2026-11-27T00:29:03.3973933Z Version: 20261122.9.1
+2026-11-27T00:29:03.3975870Z Included Software: https://github.com/actions/runner-images/blob/ubuntu26/20261122.9/images/ubuntu/Ubuntu2604-Readme.md
+2026-11-27T00:29:03.3979066Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261122.9
+2026-11-27T00:29:03.3980865Z ##[endgroup]
+2026-11-27T00:29:03.3983009Z ##[group]GITHUB_TOKEN Permissions
+2026-11-27T00:29:03.3986077Z Contents: read
+2026-11-27T00:29:03.3987217Z Metadata: read
+2026-11-27T00:29:03.3988291Z Packages: read
+2026-11-27T00:29:03.3989320Z ##[endgroup]
+2026-11-27T00:29:03.3992558Z Secret source: Actions
+2026-11-27T00:29:03.3994396Z Cache mode: write
+2026-11-27T00:29:03.3995856Z Prepare workflow directory
+2026-11-27T00:29:03.4481491Z Prepare all required actions
+2026-11-27T00:29:03.4530907Z Getting action download info
+2026-11-27T00:29:03.6551337Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-11-27T00:29:03.7482793Z Download action repository 'actions/setup-java@v4' (SHA:cf277c60eb25467037889841efdb72551f06f6c3)
+2026-11-27T00:29:03.9775437Z Download action repository 'android-actions/setup-android@v3' (SHA:9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407)
+2026-11-27T00:29:04.1015042Z Download action repository 'gradle/actions@v4' (SHA:ed408507eac070d1f99cc633dbcf757c94c7933a)
+2026-11-27T00:29:04.5292226Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-11-27T00:29:04.7538093Z Complete job name: Compile arm64-v8a APK with llama.cpp

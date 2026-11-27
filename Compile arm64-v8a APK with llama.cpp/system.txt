@@ -1,0 +1,8 @@
+2026-11-27T00:29:01.2700000Z Requested labels: ubuntu-latest
+2026-11-27T00:29:01.2700000Z Job defined at: wsl04012011w-cyber/N-cleo-/.github/workflows/build-llamacpp-apk.yml@refs/heads/main
+2026-11-27T00:29:01.2700000Z Waiting for a runner to pick up this job...
+2026-11-27T00:29:01.2640000Z Evaluating build-apk.if
+2026-11-27T00:29:01.2640000Z Evaluating: success()
+2026-11-27T00:29:01.2640000Z Result: true
+2026-11-27T00:29:01.5620000Z Job is about to start running on the hosted runner: GitHub Actions 1000000421
+2026-11-27T00:29:01.5610000Z Job is waiting for a hosted runner to come online.
