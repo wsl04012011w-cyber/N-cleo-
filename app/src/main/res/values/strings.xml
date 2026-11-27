@@ -1,0 +1,67 @@
+<resources>
+    <string name="app_name">Núcleo Chat</string>
+    <string name="app_subtitle">IA Local Privada</string>
+
+    <!-- Navegação -->
+    <string name="nav_chat">Chat</string>
+    <string name="nav_assistants">Assistentes</string>
+    <string name="nav_models">Modelos</string>
+    <string name="nav_settings">Ajustes</string>
+
+    <!-- Chat -->
+    <string name="chat_new">Novo chat</string>
+    <string name="chat_history_title">Histórico local</string>
+    <string name="chat_history_search_hint">Buscar conversas...</string>
+    <string name="chat_history_empty">Nenhuma conversa salva ainda. Suas conversas ficam apenas neste dispositivo.</string>
+    <string name="chat_privacy_badge">100% Local • Sem Conta</string>
+    <string name="chat_structural_badge">Modo Estrutural • Engine plugável</string>
+    <string name="chat_input_placeholder">Escreva sua mensagem...</string>
+    <string name="chat_send_cd">Enviar mensagem</string>
+    <string name="chat_stop_cd">Parar geração</string>
+    <string name="chat_copy_cd">Copiar mensagem</string>
+    <string name="chat_copied_toast">Texto copiado</string>
+    <string name="chat_open_history_cd">Abrir histórico de conversas</string>
+    <string name="chat_open_params_cd">Parâmetros de geração e prompt</string>
+    <string name="chat_select_assistant">Selecionar assistente</string>
+    <string name="chat_active_prompt_label">Prompt de sistema ativo</string>
+    <string name="chat_edit_prompt">Editar prompt</string>
+    <string name="chat_delete_conversation">Excluir conversa</string>
+    <string name="chat_pin_conversation">Fixar conversa</string>
+    <string name="chat_unpin_conversation">Desafixar conversa</string>
+
+    <!-- Parâmetros -->
+    <string name="params_sheet_title">Parâmetros &amp; Prompt de Sistema</string>
+    <string name="params_temperature">Temperatura</string>
+    <string name="params_top_p">Top-P (Nucleus)</string>
+    <string name="params_top_k">Top-K</string>
+    <string name="params_repeat_penalty">Penalidade de Repetição</string>
+    <string name="params_max_tokens">Limite de Tokens</string>
+    <string name="params_restore_assistant">Restaurar padrão do assistente</string>
+    <string name="params_save_changes">Aplicar na conversa</string>
+
+    <!-- Assistentes -->
+    <string name="assistants_title">Assistentes &amp; Prompts</string>
+    <string name="assistants_new">Novo assistente</string>
+    <string name="assistants_search_hint">Buscar assistentes ou prompts...</string>
+    <string name="assistants_filter_all">Todos</string>
+    <string name="assistants_filter_favorites">Favoritos</string>
+    <string name="assistants_filter_custom">Personalizados</string>
+    <string name="assistants_use_in_chat">Usar em novo chat</string>
+    <string name="assistants_edit">Editar</string>
+    <string name="assistants_duplicate">Duplicar</string>
+    <string name="assistants_delete">Excluir</string>
+    <string name="assistants_empty">Nenhum assistente encontrado para este filtro.</string>
+
+    <!-- Modelos & Engine -->
+    <string name="models_title">Modelos &amp; Engine</string>
+    <string name="models_engine_card_title">Camada de Inferência Desacoplada</string>
+    <string name="models_search_hint">Filtrar por nome ou família...</string>
+    <string name="models_activate">Selecionar slot</string>
+    <string name="models_active_badge">Slot ativo</string>
+
+    <!-- Ajustes -->
+    <string name="settings_title">Ajustes &amp; Privacidade</string>
+    <string name="settings_theme_title">Aparência</string>
+    <string name="settings_telemetry_title">Exibir métricas de tokens</string>
+    <string name="settings_clear_history">Apagar todas as conversas locais</string>
+</resources>
