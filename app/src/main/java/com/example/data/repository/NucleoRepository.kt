@@ -58,6 +58,12 @@ class NucleoRepository(
         }
         if (modelSlotDao.count() == 0) {
             modelSlotDao.insertAll(defaultModelSlots())
+        } else {
+            modelSlotDao.clearPhantomInstalls()
+            val legacyLfm = modelSlotDao.getById("slot-lfm-2-700m")
+            if (legacyLfm != null && legacyLfm.localFilePath.isNullOrBlank()) {
+                modelSlotDao.deleteById("slot-lfm-2-700m")
+            }
         }
     }
 
@@ -72,9 +78,11 @@ class NucleoRepository(
         return assistantDao.getDefaultAssistant() ?: defaultAssistants().first()
     }
 
-    suspend fun getActiveModelSlot(): ModelSlotEntity {
+    suspend fun getActiveModelSlot(): ModelSlotEntity? {
         ensureSeeded()
-        return modelSlotDao.getActiveModelSlot() ?: defaultModelSlots().first()
+        return modelSlotDao.getActiveModelSlot()?.takeIf {
+            it.isInstalled && !it.localFilePath.isNullOrBlank()
+        }
     }
 
     suspend fun getAssistantById(id: String): AssistantPresetEntity? =
@@ -96,6 +104,17 @@ class NucleoRepository(
         NucleoLogger.i("Models", "Selecionando modelo ativo: $slotId")
         modelSlotDao.clearActive()
         modelSlotDao.markActive(slotId)
+    }
+
+    suspend fun preloadModelSlot(slotId: String): Boolean {
+        val slot = modelSlotDao.getById(slotId)
+            ?.takeIf { it.isInstalled && !it.localFilePath.isNullOrBlank() }
+            ?: return false
+        return inferenceEngine.preloadModel(slot)
+    }
+
+    fun cancelModelPreload() {
+        inferenceEngine.cancelPreload()
     }
 
     suspend fun startModelDownload(slotId: String) {
@@ -246,8 +265,9 @@ class NucleoRepository(
             )
         }
         if (current.isActive) {
+            inferenceEngine.cancelPreload()
             modelSlotDao.clearActive()
-            val nextInstalled = modelSlotDao.getById("slot-lfm-2-700m")?.takeIf { it.isInstalled && it.id != slotId }
+            val nextInstalled = modelSlotDao.getFirstRealInstalledModel(slotId)
             if (nextInstalled != null) {
                 modelSlotDao.markActive(nextInstalled.id)
             }
@@ -505,23 +525,6 @@ class NucleoRepository(
     )
 
     private fun defaultModelSlots(): List<ModelSlotEntity> = listOf(
-        ModelSlotEntity(
-            id = "slot-lfm-2-700m",
-            displayName = "LFM 2 (700M)",
-            family = "LFM",
-            quantizationLabel = "Q4_K_M",
-            parameterSizeLabel = "700M",
-            sizeLabel = "447 MB",
-            tagsCsv = "rápido,uso diário,recomendado",
-            downloadUrl = "https://huggingface.co/LiquidAI/LFM2-700M-GGUF/resolve/main/LFM2-700M-Q4_K_M.gguf",
-            repoSlug = "LiquidAI/LFM2-700M-GGUF",
-            isInstalled = true,
-            contextLength = 8192,
-            estimatedRamGb = 0.8f,
-            description = "Modelo híbrido para conversas rápidas do dia a dia e tarefas leves. Padrão inicial.",
-            isActive = true,
-            engineState = ModelEngineSlotState.STRUCTURAL_READY
-        ),
         ModelSlotEntity(
             id = "slot-qwen-3-5-08b",
             displayName = "Qwen 3.5 (0.8B)",

@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.UploadFile
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -61,8 +62,7 @@ fun ModelSelectorBottomSheet(
     var selectedTab by remember { mutableIntStateOf(0) } // 0 = Local, 1 = Nuvem
 
     val installedModels = remember(models) {
-        val installed = models.filter { it.isInstalled }
-        if (installed.isNotEmpty()) installed else models.take(1)
+        models.filter { it.isInstalled && !it.localFilePath.isNullOrBlank() }
     }
 
     ModalBottomSheet(
@@ -132,105 +132,143 @@ fun ModelSelectorBottomSheet(
             Spacer(modifier = Modifier.height(18.dp))
 
             if (selectedTab == 0) {
-                Text(
-                    text = "BAIXADOS",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 320.dp)
-                ) {
-                    items(installedModels, key = { it.id }) { slot ->
+                if (installedModels.isEmpty()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
                         Surface(
-                            onClick = {
-                                onSelectSlot(slot.id)
-                                onDismiss()
-                            },
-                            shape = RoundedCornerShape(18.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            border = BorderStroke(
-                                1.dp,
-                                if (slot.isActive) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
-                                else MaterialTheme.colorScheme.outlineVariant
-                            ),
-                            modifier = Modifier.fillMaxWidth()
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainer,
+                            modifier = Modifier.size(56.dp)
                         ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        ModelBrandIcon(
-                                            family = slot.family,
-                                            size = 19.dp,
-                                            tintFallback = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Spacer(modifier = Modifier.width(10.dp))
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Memory,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(26.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Text(
+                            text = "Nenhum modelo baixado",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Baixe um modelo do catálogo ou importe um arquivo .gguf do seu aparelho para começar.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    Text(
+                        text = "BAIXADOS",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 320.dp)
+                    ) {
+                        items(installedModels, key = { it.id }) { slot ->
+                            Surface(
+                                onClick = {
+                                    onSelectSlot(slot.id)
+                                    onDismiss()
+                                },
+                                shape = RoundedCornerShape(18.dp),
+                                color = MaterialTheme.colorScheme.surface,
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (slot.isActive) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
+                                    else MaterialTheme.colorScheme.outlineVariant
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            ModelBrandIcon(
+                                                family = slot.family,
+                                                size = 19.dp,
+                                                tintFallback = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Text(
+                                                text = slot.displayName,
+                                                style = MaterialTheme.typography.titleMedium,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+
+                                        if (slot.isActive) {
+                                            Surface(
+                                                shape = CircleShape,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(22.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.Check,
+                                                    contentDescription = "Selecionado",
+                                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                                    modifier = Modifier.padding(4.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = MaterialTheme.colorScheme.surface,
+                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                                        ) {
+                                            Text(
+                                                text = "GGUF",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                            )
+                                        }
                                         Text(
-                                            text = slot.displayName,
-                                            style = MaterialTheme.typography.titleMedium,
+                                            text = slot.quantizationLabel,
+                                            style = MaterialTheme.typography.labelMedium,
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
                                     }
 
-                                    if (slot.isActive) {
-                                        Surface(
-                                            shape = CircleShape,
-                                            color = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(22.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Filled.Check,
-                                                contentDescription = "Selecionado",
-                                                tint = MaterialTheme.colorScheme.onPrimary,
-                                                modifier = Modifier.padding(4.dp)
-                                            )
-                                        }
-                                    }
-                                }
+                                    Spacer(modifier = Modifier.height(10.dp))
 
-                                Spacer(modifier = Modifier.height(10.dp))
-
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    Surface(
-                                        shape = RoundedCornerShape(6.dp),
-                                        color = MaterialTheme.colorScheme.surface,
-                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                                    ) {
-                                        Text(
-                                            text = "GGUF",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                        )
-                                    }
                                     Text(
-                                        text = slot.quantizationLabel,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurface
+                                        text = slot.description,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
-
-                                Spacer(modifier = Modifier.height(10.dp))
-
-                                Text(
-                                    text = slot.description,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
-                                )
                             }
                         }
                     }

@@ -1,6 +1,7 @@
 package com.example.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -63,6 +64,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -72,6 +74,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
@@ -79,6 +82,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -91,6 +95,56 @@ import com.example.engine.ChatAttachment
 import com.example.engine.EngineState
 import com.example.ui.theme.JetBrainsMonoFontFamily
 import java.util.Locale
+
+@Composable
+fun SilverShimmerLoadingText(
+    text: String = "Carregando modelo...",
+    style: TextStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+    modifier: Modifier = Modifier
+) {
+    val baseColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
+    val midSilver = Color(0xFFC2C7D1)
+    val brightSilver = Color(0xFFF5F7FA)
+
+    val infiniteTransition = rememberInfiniteTransition(label = "silver_shimmer")
+    val progress by infiniteTransition.animateFloat(
+        initialValue = -0.35f,
+        targetValue = 1.35f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1400, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmer_sweep"
+    )
+
+    var textWidthPx by remember { mutableFloatStateOf(320f) }
+    val bandWidth = (textWidthPx * 0.40f).coerceAtLeast(84f)
+    val startX = progress * (textWidthPx + bandWidth) - bandWidth
+
+    val shimmerBrush = Brush.linearGradient(
+        colors = listOf(
+            baseColor,
+            midSilver,
+            brightSilver,
+            midSilver,
+            baseColor
+        ),
+        start = Offset(startX, 0f),
+        end = Offset(startX + bandWidth, 0f)
+    )
+
+    Text(
+        text = text,
+        style = style.copy(brush = shimmerBrush),
+        onTextLayout = { layout ->
+            val measured = layout.size.width.toFloat()
+            if (measured > 0f) {
+                textWidthPx = measured
+            }
+        },
+        modifier = modifier
+    )
+}
 
 @Composable
 fun AtomicAsteriskEmblem(
@@ -292,6 +346,7 @@ fun AtomicTopBar(
 fun AtomicEmptyState(
     activeAssistantName: String,
     isDefaultAssistant: Boolean,
+    isModelLoading: Boolean = false,
     onSelectAssistantChip: () -> Unit,
     onSelectStarterPrompt: (String) -> Unit,
     modifier: Modifier = Modifier
@@ -365,6 +420,20 @@ fun AtomicEmptyState(
         }
 
         Spacer(modifier = Modifier.weight(1f))
+
+        AnimatedVisibility(visible = isModelLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                SilverShimmerLoadingText(
+                    text = "Carregando modelo...",
+                    modifier = Modifier.testTag("loading_model_shimmer")
+                )
+            }
+        }
 
         LazyRow(
             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
@@ -532,15 +601,18 @@ fun AtomicMessageItem(
             }
 
             if (isCurrentlyStreaming && mainBody.isBlank() && structuralBlock.isBlank()) {
-                val waitingLabel = when (engineStatus) {
-                    EngineState.INITIALIZING -> "Carregando modelo..."
-                    else -> "Gerando resposta..."
+                if (engineStatus == EngineState.INITIALIZING) {
+                    SilverShimmerLoadingText(
+                        text = "Carregando modelo...",
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium)
+                    )
+                } else {
+                    Text(
+                        text = "Gerando resposta...",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
-                Text(
-                    text = waitingLabel,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             } else {
                 val displayText = buildString {
                     append(mainBody)

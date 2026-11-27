@@ -35,7 +35,41 @@ fun ModelBrandIcon(
         family.equals("Gemma", ignoreCase = true) -> GoogleGIcon(size = size, modifier = modifier)
         family.equals("Llama", ignoreCase = true) -> MetaInfinityIcon(size = size, modifier = modifier)
         family.equals("Phi", ignoreCase = true) -> MicrosoftGridIcon(size = size, modifier = modifier)
-        else -> LiquidPrismIcon(color = tintFallback, size = size, modifier = modifier)
+        else -> NeutralModelChipIcon(color = tintFallback, size = size, modifier = modifier)
+    }
+}
+
+@Composable
+fun NeutralModelChipIcon(
+    color: Color = MaterialTheme.colorScheme.onSurface,
+    size: Dp = 20.dp,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier.size(size)) {
+        val w = this.size.width
+        val h = this.size.height
+        val cx = w / 2f
+        val cy = h / 2f
+        val r = w * 0.40f
+        val hex = Path().apply {
+            for (i in 0..5) {
+                val angle = Math.toRadians((-90 + i * 60).toDouble())
+                val x = cx + (r * cos(angle)).toFloat()
+                val y = cy + (r * sin(angle)).toFloat()
+                if (i == 0) moveTo(x, y) else lineTo(x, y)
+            }
+            close()
+        }
+        drawPath(
+            path = hex,
+            color = color,
+            style = Stroke(width = w * 0.105f, join = StrokeJoin.Round)
+        )
+        drawCircle(
+            color = color,
+            radius = w * 0.12f,
+            center = Offset(cx, cy)
+        )
     }
 }
 

@@ -66,6 +66,12 @@ interface ModelSlotDao {
     @Query("UPDATE model_slots SET isInstalled = :installed, localFilePath = :localFilePath, downloadedBytes = :downloadedBytes WHERE id = :id")
     suspend fun updateInstallState(id: String, installed: Boolean, localFilePath: String?, downloadedBytes: Long)
 
+    @Query("SELECT * FROM model_slots WHERE isInstalled = 1 AND localFilePath IS NOT NULL AND localFilePath != '' AND id != :excludeId ORDER BY estimatedRamGb ASC LIMIT 1")
+    suspend fun getFirstRealInstalledModel(excludeId: String): ModelSlotEntity?
+
+    @Query("UPDATE model_slots SET isInstalled = 0, isActive = 0, downloadedBytes = 0 WHERE isInstalled = 1 AND (localFilePath IS NULL OR localFilePath = '')")
+    suspend fun clearPhantomInstalls()
+
     @Query("DELETE FROM model_slots WHERE id = :id")
     suspend fun deleteById(id: String)
 

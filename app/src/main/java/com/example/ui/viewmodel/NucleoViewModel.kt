@@ -19,9 +19,12 @@ import com.example.ui.theme.AppThemeMode
 import com.example.util.NucleoLogger
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
@@ -49,6 +52,10 @@ class NucleoViewModel(
 ) : ViewModel() {
 
     private var activeGenerationJob: Job? = null
+    private var preloadJob: Job? = null
+
+    private val _noModelPromptEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 2)
+    val noModelPromptEvent: SharedFlow<Unit> = _noModelPromptEvent.asSharedFlow()
 
     private val _selectedConversationId = MutableStateFlow<String?>(null)
     val selectedConversationId: StateFlow<String?> = _selectedConversationId.asStateFlow()
@@ -314,10 +321,6 @@ class NucleoViewModel(
         val text = (overrideText ?: _draftInput.value).trim()
         val attachmentsToSend = if (overrideText == null) _pendingAttachments.value else emptyList()
         if ((text.isEmpty() && attachmentsToSend.isEmpty()) || _isGenerating.value) return
-        if (overrideText == null) {
-            _draftInput.value = ""
-            _pendingAttachments.value = emptyList()
-        }
 
         val effectivePrompt = text.ifEmpty {
             attachmentsToSend.joinToString(", ") { it.displayName }
@@ -325,6 +328,21 @@ class NucleoViewModel(
 
         activeGenerationJob?.cancel()
         activeGenerationJob = viewModelScope.launch {
+            val modelSlot = activeModelSlot.value?.takeIf {
+                it.isInstalled && !it.localFilePath.isNullOrBlank()
+            } ?: repository.getActiveModelSlot()
+
+            if (modelSlot == null) {
+                NucleoLogger.i("Chat", "Envio bloqueado: nenhum modelo GGUF instalado/selecionado")
+                _noModelPromptEvent.tryEmit(Unit)
+                return@launch
+            }
+
+            if (overrideText == null) {
+                _draftInput.value = ""
+                _pendingAttachments.value = emptyList()
+            }
+
             _isGenerating.value = true
             var assistantMessageId: String? = null
             val accumulated = StringBuilder()
@@ -332,7 +350,6 @@ class NucleoViewModel(
             var lastElapsed = 0L
 
             try {
-                val modelSlot = activeModelSlot.value ?: repository.getActiveModelSlot()
                 NucleoLogger.i(
                     "Chat",
                     "Enviando mensagem (${effectivePrompt.length} chars) usando modelo '${modelSlot.displayName}' (installed=${modelSlot.isInstalled}, path=${modelSlot.localFilePath})"
@@ -504,9 +521,14 @@ class NucleoViewModel(
         }
     }
 
-    fun selectModelSlot(slotId: String) {
-        viewModelScope.launch {
+    fun selectModelSlot(slotId: String, preload: Boolean = true) {
+        preloadJob?.cancel()
+        repository.cancelModelPreload()
+        preloadJob = viewModelScope.launch {
             repository.selectModelSlot(slotId)
+            if (preload) {
+                repository.preloadModelSlot(slotId)
+            }
         }
     }
 

@@ -67,5 +67,7 @@ data class EngineCapabilities(
 interface InferenceEngine {
     val status: StateFlow<EngineState>
     val capabilities: EngineCapabilities
+    suspend fun preloadModel(modelSlot: ModelSlotEntity): Boolean = true
+    fun cancelPreload() {}
     fun generateStream(request: InferenceRequest): Flow<GenerationChunk>
 }

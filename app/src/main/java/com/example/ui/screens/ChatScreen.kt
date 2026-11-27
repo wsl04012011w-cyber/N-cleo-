@@ -49,6 +49,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.engine.ChatAttachment
+import com.example.engine.EngineState
 import com.example.ui.components.AtomicChatInputBar
 import com.example.ui.components.AtomicDrawerContent
 import com.example.ui.components.AtomicEmptyState
@@ -56,6 +57,7 @@ import com.example.ui.components.AtomicMessageItem
 import com.example.ui.components.AtomicTopBar
 import com.example.ui.components.ModelSelectorBottomSheet
 import com.example.ui.components.QuickPlusActionsSheet
+import com.example.ui.components.SilverShimmerLoadingText
 import com.example.ui.viewmodel.NucleoViewModel
 import kotlinx.coroutines.launch
 
@@ -110,6 +112,14 @@ fun ChatScreen(
     val currentAssistantId = activeConversation?.assistantId ?: draftConfig.assistantId
     val currentAssistantName = activeConversation?.assistantNameSnapshot ?: draftConfig.assistantName
     val isDefaultAssistant = currentAssistantId == "preset-geral" || currentAssistantId == null
+    val readyModel = activeModelSlot?.takeIf { it.isInstalled && !it.localFilePath.isNullOrBlank() }
+
+    LaunchedEffect(Unit) {
+        viewModel.noModelPromptEvent.collect {
+            showModelSheet = true
+            snackbarHostState.showSnackbar("Escolha, baixe ou importe um modelo GGUF primeiro")
+        }
+    }
 
     LaunchedEffect(messages.size, messages.lastOrNull()?.content?.length) {
         if (messages.isNotEmpty()) {
@@ -137,8 +147,8 @@ fun ChatScreen(
                     AtomicTopBar(
                         showDrawerButton = !isWideScreen,
                         showNewChatButton = messages.isNotEmpty(),
-                        activeModelName = activeModelSlot?.displayName ?: "LFM 2 (700M)",
-                        activeModelFamily = activeModelSlot?.family ?: "LFM",
+                        activeModelName = readyModel?.displayName ?: "Escolher modelo",
+                        activeModelFamily = readyModel?.family ?: "GGUF",
                         onOpenDrawer = { scope.launch { drawerState.open() } },
                         onOpenModelSelector = { showModelSheet = true },
                         onOpenInferenceSettings = onNavigateToInferenceSettings,
@@ -149,6 +159,7 @@ fun ChatScreen(
                         AtomicEmptyState(
                             activeAssistantName = currentAssistantName,
                             isDefaultAssistant = isDefaultAssistant,
+                            isModelLoading = engineStatus == EngineState.INITIALIZING,
                             onSelectAssistantChip = { showPlusSheet = true },
                             onSelectStarterPrompt = { starter ->
                                 viewModel.sendMessage(overrideText = starter)
@@ -181,6 +192,17 @@ fun ChatScreen(
                                         }
                                     }
                                 )
+                            }
+                        }
+
+                        if (engineStatus == EngineState.INITIALIZING && !isGenerating) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                SilverShimmerLoadingText(text = "Carregando modelo...")
                             }
                         }
                     }
@@ -286,10 +308,9 @@ fun ChatScreen(
     }
 
     if (showPlusSheet) {
-        val currentModel = activeModelSlot
         QuickPlusActionsSheet(
-            activeModelName = currentModel?.displayName ?: "LFM 2 (700M)",
-            activeModelSupportsVision = currentModel?.supportsVision == true,
+            activeModelName = readyModel?.displayName ?: "Nenhum modelo",
+            activeModelSupportsVision = readyModel?.supportsVision == true,
             onPickFile = {
                 filePickerLauncher.launch(arrayOf("*/*"))
             },

@@ -1,12 +1,15 @@
 package com.example.engine
 
+import android.app.ActivityManager
 import android.content.Context
 import android.net.Uri
 import com.example.data.local.MessageRole
+import com.example.data.local.ModelSlotEntity
 import com.example.util.NucleoLogger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,12 +18,19 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.nio.charset.StandardCharsets
 
 class LlamaCppInferenceEngine(
     private val context: Context
 ) : InferenceEngine {
+
+    @Volatile
+    private var lastLoadedPath: String? = null
+
+    @Volatile
+    private var lastLoadedCtx: Int = 0
 
     private val _status = MutableStateFlow(EngineState.READY)
     override val status: StateFlow<EngineState> = _status.asStateFlow()
@@ -33,6 +43,102 @@ class LlamaCppInferenceEngine(
         supportsSystemPrompts = true,
         isStructuralMode = false
     )
+
+    override suspend fun preloadModel(modelSlot: ModelSlotEntity): Boolean {
+        val modelPath = modelSlot.localFilePath
+        val modelFile = if (!modelPath.isNullOrBlank()) File(modelPath) else null
+        if (modelFile == null || !modelFile.exists() || modelFile.length() <= 0L) {
+            NucleoLogger.w("Inference", "Pré-carregamento ignorado: arquivo GGUF ausente (${modelSlot.displayName})")
+            return false
+        }
+
+        val ctxSize = computeSafeContextSize(modelSlot, modelFile)
+        if (lastLoadedPath == modelFile.absolutePath && lastLoadedCtx == ctxSize && _status.value == EngineState.READY) {
+            NucleoLogger.i("Inference", "Modelo já pré-carregado em memória: ${modelFile.name} (ctx=$ctxSize)")
+            return true
+        }
+
+        _status.value = EngineState.INITIALIZING
+        NucleoLogger.i("Inference", "Pré-carregando modelo ao iniciar chat: ${modelFile.name} (ctx=$ctxSize)...")
+
+        return try {
+            withContext(Dispatchers.IO) {
+                coroutineScope {
+                    val poller = launch {
+                        while (isActive) {
+                            LlamaCppNativeBridge.drainLogsToLogger()
+                            delay(300L)
+                        }
+                    }
+                    try {
+                        val loaded = LlamaCppNativeBridge.nativeLoadModel(modelFile.absolutePath, ctxSize)
+                        LlamaCppNativeBridge.drainLogsToLogger()
+                        if (loaded) {
+                            lastLoadedPath = modelFile.absolutePath
+                            lastLoadedCtx = ctxSize
+                            if (_status.value == EngineState.INITIALIZING) {
+                                _status.value = EngineState.READY
+                            }
+                            NucleoLogger.i("Inference", "Pré-carregamento concluído com sucesso: ${modelFile.name}")
+                        } else {
+                            lastLoadedPath = null
+                            lastLoadedCtx = 0
+                            if (_status.value == EngineState.INITIALIZING) {
+                                _status.value = EngineState.ERROR
+                            }
+                            NucleoLogger.e("Inference", "Pré-carregamento falhou para ${modelFile.name}")
+                        }
+                        loaded
+                    } finally {
+                        poller.cancel()
+                        LlamaCppNativeBridge.drainLogsToLogger()
+                    }
+                }
+            }
+        } catch (ce: CancellationException) {
+            NucleoLogger.i("Inference", "Pré-carregamento cancelado (${modelFile.name})")
+            if (_status.value == EngineState.INITIALIZING) {
+                _status.value = EngineState.READY
+            }
+            throw ce
+        } catch (t: Throwable) {
+            NucleoLogger.e("Inference", "Erro inesperado no pré-carregamento", t)
+            if (_status.value == EngineState.INITIALIZING) {
+                _status.value = EngineState.ERROR
+            }
+            false
+        }
+    }
+
+    override fun cancelPreload() {
+        if (_status.value == EngineState.INITIALIZING) {
+            LlamaCppNativeBridge.nativeCancel()
+        }
+    }
+
+    private fun computeSafeContextSize(modelSlot: ModelSlotEntity, modelFile: File): Int {
+        val am = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+        val memInfo = ActivityManager.MemoryInfo()
+        var availMb = -1L
+        var totalMb = -1L
+        if (am != null) {
+            am.getMemoryInfo(memInfo)
+            availMb = memInfo.availMem / (1024L * 1024L)
+            totalMb = memInfo.totalMem / (1024L * 1024L)
+        }
+        val modelMb = modelFile.length() / (1024L * 1024L)
+        val capCtx = if ((availMb in 1L..2600L) || (modelMb > 1200L && totalMb in 1L..6500L)) {
+            2048
+        } else {
+            4096
+        }
+        val safeCtx = modelSlot.contextLength.coerceIn(1024, capCtx)
+        NucleoLogger.i(
+            "Inference",
+            "Memória p/ inferência: livre=${availMb}MB/${totalMb}MB, modelo=${modelMb}MB, ctx=$safeCtx (solicitado=${modelSlot.contextLength})"
+        )
+        return safeCtx
+    }
 
     override fun generateStream(request: InferenceRequest): Flow<GenerationChunk> = callbackFlow {
         val modelPath = request.modelSlot.localFilePath
@@ -73,13 +179,18 @@ class LlamaCppInferenceEngine(
             var emittedChars = 0
 
             try {
-                _status.value = EngineState.INITIALIZING
-                val ctxSize = request.modelSlot.contextLength.coerceIn(1024, 4096)
-                NucleoLogger.i("Inference", "Carregando modelo nativo (ctx=$ctxSize)...")
+                val ctxSize = computeSafeContextSize(request.modelSlot, modelFile)
+                val alreadyLoaded = (lastLoadedPath == modelFile.absolutePath && lastLoadedCtx == ctxSize)
+                if (!alreadyLoaded) {
+                    _status.value = EngineState.INITIALIZING
+                    NucleoLogger.i("Inference", "Carregando modelo nativo (ctx=$ctxSize)...")
+                }
                 val loaded = LlamaCppNativeBridge.nativeLoadModel(modelFile.absolutePath, ctxSize)
                 LlamaCppNativeBridge.drainLogsToLogger()
 
                 if (!loaded) {
+                    lastLoadedPath = null
+                    lastLoadedCtx = 0
                     NucleoLogger.e("Inference", "nativeLoadModel retornou false para ${modelFile.absolutePath}")
                     _status.value = EngineState.ERROR
                     trySend(
@@ -94,6 +205,9 @@ class LlamaCppInferenceEngine(
                     close()
                     return@launch
                 }
+
+                lastLoadedPath = modelFile.absolutePath
+                lastLoadedCtx = ctxSize
 
                 _status.value = EngineState.GENERATING
                 val (roles, contents) = buildChatArrays(request)

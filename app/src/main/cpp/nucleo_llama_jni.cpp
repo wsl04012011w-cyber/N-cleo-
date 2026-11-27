@@ -181,14 +181,63 @@ struct has_use_mlock : std::false_type {};
 template <typename T>
 struct has_use_mlock<T, std::void_t<decltype(std::declval<T &>().use_mlock)>> : std::true_type {};
 
+template <typename T, typename = void>
+struct has_use_extra_bufts : std::false_type {};
+
+template <typename T>
+struct has_use_extra_bufts<T, std::void_t<decltype(std::declval<T &>().use_extra_bufts)>> : std::true_type {};
+
+template <typename T, typename = void>
+struct has_progress_callback : std::false_type {};
+
+template <typename T>
+struct has_progress_callback<T, std::void_t<
+    decltype(std::declval<T &>().progress_callback),
+    decltype(std::declval<T &>().progress_callback_user_data)
+>> : std::true_type {};
+
+struct LoadProgressState {
+    int last_pct = -1;
+};
+
+bool nucleo_load_progress_callback(float progress, void * user_data) {
+    if (g_cancel_requested.load()) {
+        return false;
+    }
+    auto * state = static_cast<LoadProgressState *>(user_data);
+    if (state != nullptr) {
+        const int pct = std::clamp(static_cast<int>(progress * 100.0f), 0, 100);
+        if (pct >= state->last_pct + 25 || (pct == 100 && state->last_pct < 100)) {
+            state->last_pct = pct;
+            LOGI("Progresso da carga GGUF: %d%%", pct);
+        }
+    }
+    return true;
+}
+
 template <typename ModelParams>
-void configure_model_load_params(ModelParams & mparams) {
+void configure_model_load_params(ModelParams & mparams, LoadProgressState & progress_state) {
     if constexpr (has_use_mmap<ModelParams>::value) {
         mparams.use_mmap = true;
     }
     if constexpr (has_use_mlock<ModelParams>::value) {
         mparams.use_mlock = false;
     }
+    if constexpr (has_use_extra_bufts<ModelParams>::value) {
+        // Evita repacking em RAM (CPU_KLEIDIAI/REPACK) que duplica o modelo inteiro na memória e trava em Android.
+        mparams.use_extra_bufts = false;
+    }
+    if constexpr (has_progress_callback<ModelParams>::value) {
+        mparams.progress_callback = nucleo_load_progress_callback;
+        mparams.progress_callback_user_data = &progress_state;
+    }
+    LOGI(
+        "configure_model_load_params: has_mmap=%d, has_mlock=%d, has_extra_bufts=%d (disabled), has_progress_cb=%d",
+        has_use_mmap<ModelParams>::value ? 1 : 0,
+        has_use_mlock<ModelParams>::value ? 1 : 0,
+        has_use_extra_bufts<ModelParams>::value ? 1 : 0,
+        has_progress_callback<ModelParams>::value ? 1 : 0
+    );
 }
 
 // Compatibilidade automática com assinaturas de llama_sampler_init_penalties (4 ou 5 argumentos com n_vocab)
@@ -350,13 +399,18 @@ Java_com_example_engine_LlamaCppNativeBridge_nativeLoadModel(
          static_cast<double>(file_size_bytes) / (1024.0 * 1024.0),
          target_ctx);
 
+    LoadProgressState progress_state{};
     llama_model_params mparams = llama_model_default_params();
-    configure_model_load_params(mparams);
+    configure_model_load_params(mparams, progress_state);
     mparams.n_gpu_layers = llama_supports_gpu_offload() ? 99 : 0;
 
     g_model = llama_model_load_from_file(model_path.c_str(), mparams);
     if (g_model == nullptr) {
-        LOGE("Falha ao carregar modelo GGUF: %s", model_path.c_str());
+        if (g_cancel_requested.load()) {
+            LOGI("Carga GGUF interrompida por cancelamento do usuário");
+        } else {
+            LOGE("Falha ao carregar modelo GGUF: %s", model_path.c_str());
+        }
         return JNI_FALSE;
     }
 
