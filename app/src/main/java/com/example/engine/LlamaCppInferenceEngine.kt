@@ -21,6 +21,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.nio.charset.StandardCharsets
+import java.util.concurrent.atomic.AtomicBoolean
 
 class LlamaCppInferenceEngine(
     private val context: Context
@@ -216,8 +217,26 @@ class LlamaCppInferenceEngine(
                     "Disparando nativeGenerateStream: msgs=${roles.size}, temp=${request.parameters.temperature}, topP=${request.parameters.topP}, topK=${request.parameters.topK}, maxTokens=${request.parameters.maxTokens}"
                 )
 
+                val firstTokenReceived = AtomicBoolean(false)
+                val watchdogTriggered = AtomicBoolean(false)
+                val watchdogJob = launch(Dispatchers.IO) {
+                    delay(60_000L)
+                    if (!firstTokenReceived.get() && isActive) {
+                        watchdogTriggered.set(true)
+                        NucleoLogger.e(
+                            "Inference",
+                            "Watchdog: 60 s sem receber primeiro token; cancelando llama_decode."
+                        )
+                        LlamaCppNativeBridge.nativeCancel()
+                        LlamaCppNativeBridge.drainLogsToLogger()
+                    }
+                }
+
                 val callback = object : LlamaCppNativeBridge.TokenCallback {
                     override fun onTokenBytes(bytes: ByteArray) {
+                        if (firstTokenReceived.compareAndSet(false, true)) {
+                            watchdogJob.cancel()
+                        }
                         val piece = String(bytes, StandardCharsets.UTF_8)
                         tokenCount += 1
                         emittedChars += piece.length
@@ -238,25 +257,39 @@ class LlamaCppInferenceEngine(
                     }
                 }
 
-                val result = LlamaCppNativeBridge.nativeGenerateStream(
-                    roles = roles,
-                    contents = contents,
-                    temperature = request.parameters.temperature,
-                    topP = request.parameters.topP,
-                    topK = request.parameters.topK,
-                    repeatPenalty = request.parameters.repeatPenalty,
-                    maxTokens = request.parameters.maxTokens,
-                    callback = callback
-                )
+                val result = try {
+                    LlamaCppNativeBridge.nativeGenerateStream(
+                        roles = roles,
+                        contents = contents,
+                        temperature = request.parameters.temperature,
+                        topP = request.parameters.topP,
+                        topK = request.parameters.topK,
+                        repeatPenalty = request.parameters.repeatPenalty,
+                        maxTokens = request.parameters.maxTokens,
+                        callback = callback
+                    )
+                } finally {
+                    watchdogJob.cancel()
+                }
                 LlamaCppNativeBridge.drainLogsToLogger()
 
                 val elapsed = System.currentTimeMillis() - startedAt
                 NucleoLogger.i(
                     "Inference",
-                    "nativeGenerateStream retornou result=$result, callbacks=$tokenCount, chars=$emittedChars, elapsed=${elapsed}ms"
+                    "nativeGenerateStream retornou result=$result, callbacks=$tokenCount, chars=$emittedChars, elapsed=${elapsed}ms, watchdog=${watchdogTriggered.get()}"
                 )
 
-                if (result < 0) {
+                if (watchdogTriggered.get()) {
+                    _status.value = EngineState.ERROR
+                    trySend(
+                        GenerationChunk(
+                            deltaText = "[Tempo limite excedido: 60 s sem resposta do motor durante o prefill/decode. Consulte os logs em Downloads/NucleoChat.]",
+                            isFinished = true,
+                            tokensGenerated = tokenCount,
+                            elapsedMs = elapsed
+                        )
+                    )
+                } else if (result < 0) {
                     _status.value = EngineState.ERROR
                     trySend(
                         GenerationChunk(
@@ -353,8 +386,13 @@ class LlamaCppInferenceEngine(
                 MessageRole.SYSTEM_NOTE -> "system"
                 else -> "user"
             }
+            val cleanedContent = if (msg.role == MessageRole.ASSISTANT) {
+                stripCompletedThinking(msg.content)
+            } else {
+                msg.content
+            }
             roles += mappedRole
-            contents += msg.content
+            contents += cleanedContent
         }
 
         val attachmentContext = buildAttachmentContext(request.attachments)
@@ -370,6 +408,14 @@ class LlamaCppInferenceEngine(
         contents += finalUserPrompt
 
         return roles.toTypedArray() to contents.toTypedArray()
+    }
+
+    private fun stripCompletedThinking(text: String): String {
+        val closeTag = "</think>"
+        val closeIdx = text.indexOf(closeTag)
+        if (closeIdx < 0) return text
+        val after = text.substring(closeIdx + closeTag.length).trimStart()
+        return after.ifEmpty { text }
     }
 
     private fun buildAttachmentContext(attachments: List<ChatAttachment>): String {

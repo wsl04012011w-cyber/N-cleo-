@@ -11,6 +11,7 @@
 #include <deque>
 #include <fstream>
 #include <mutex>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <type_traits>
@@ -83,6 +84,7 @@ llama_model * g_model = nullptr;
 llama_context * g_ctx = nullptr;
 std::string g_loaded_model_path;
 int32_t g_loaded_ctx_size = 0;
+std::vector<llama_token> g_cached_tokens;
 std::atomic<bool> g_cancel_requested{false};
 std::atomic<bool> g_backend_initialized{false};
 
@@ -91,7 +93,21 @@ void ensure_backend_init() {
     if (g_backend_initialized.compare_exchange_strong(expected, true)) {
         llama_log_set(nucleo_llama_log_callback, nullptr);
         llama_backend_init();
-        LOGI("llama_backend_init concluído; gpu_offload=%d", llama_supports_gpu_offload() ? 1 : 0);
+        const char * sys_info = llama_print_system_info();
+        const std::string info_str = sys_info != nullptr ? sys_info : "";
+        const bool has_dotprod = info_str.find("DOTPROD = 1") != std::string::npos;
+        const bool has_fp16 = info_str.find("FP16_VA = 1") != std::string::npos;
+        const bool has_kleidiai = info_str.find("KLEIDIAI = 1") != std::string::npos;
+        const bool has_repack = info_str.find("REPACK = 1") != std::string::npos;
+        LOGI("llama_backend_init concluído; gpu_offload=%d | DOTPROD=%d FP16_VA=%d KLEIDIAI=%d REPACK=%d",
+             llama_supports_gpu_offload() ? 1 : 0,
+             has_dotprod ? 1 : 0,
+             has_fp16 ? 1 : 0,
+             has_kleidiai ? 1 : 0,
+             has_repack ? 1 : 0);
+        if (!info_str.empty()) {
+            LOGI("SystemInfo: %s", info_str.c_str());
+        }
     }
 }
 
@@ -106,19 +122,63 @@ void unload_locked() {
     }
     g_loaded_model_path.clear();
     g_loaded_ctx_size = 0;
+    g_cached_tokens.clear();
+}
+
+uint64_t get_mem_available_bytes() {
+    std::ifstream meminfo("/proc/meminfo");
+    if (!meminfo.is_open()) return 0;
+    std::string line;
+    while (std::getline(meminfo, line)) {
+        if (line.rfind("MemAvailable:", 0) == 0) {
+            std::istringstream iss(line.substr(13));
+            uint64_t kb = 0;
+            if (iss >> kb) {
+                return kb * 1024ULL;
+            }
+        }
+    }
+    return 0;
+}
+
+int detect_big_core_count() {
+    const int hw_cores = static_cast<int>(std::thread::hardware_concurrency());
+    if (hw_cores <= 0) return 4;
+
+    std::vector<long long> max_freqs;
+    max_freqs.reserve(static_cast<size_t>(hw_cores));
+    long long global_max = 0;
+    for (int cpu = 0; cpu < hw_cores; ++cpu) {
+        char path[128];
+        std::snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_max_freq", cpu);
+        std::ifstream f(path);
+        long long freq = 0;
+        if (f.is_open() && (f >> freq) && freq > 0) {
+            max_freqs.push_back(freq);
+            if (freq > global_max) global_max = freq;
+        }
+    }
+
+    if (global_max > 0 && !max_freqs.empty()) {
+        int big_count = 0;
+        const long long threshold = (global_max * 85) / 100;
+        for (long long freq : max_freqs) {
+            if (freq >= threshold) ++big_count;
+        }
+        if (big_count >= 2) {
+            return std::clamp(big_count, 2, 4);
+        }
+    }
+    // Em SoCs Android big.LITTLE (ex.: 4x A78 + 4x A55), limita aos 4 núcleos grandes.
+    return std::clamp(hw_cores / 2, 2, 4);
 }
 
 int recommended_decode_threads() {
-    int cores = static_cast<int>(std::thread::hardware_concurrency());
-    if (cores <= 0) return 4;
-    // Em SoCs Android big.LITTLE, limitar a 4 threads evita contenção em núcleos LITTLE lentos.
-    return std::clamp(cores / 2, 2, 4);
+    return detect_big_core_count();
 }
 
 int recommended_prefill_threads() {
-    int cores = static_cast<int>(std::thread::hardware_concurrency());
-    if (cores <= 0) return 4;
-    return std::clamp(cores / 2, 2, 4);
+    return detect_big_core_count();
 }
 
 bool verify_gguf_file(const std::string & path, uint64_t & out_size_bytes) {
@@ -196,6 +256,19 @@ struct has_progress_callback<T, std::void_t<
     decltype(std::declval<T &>().progress_callback_user_data)
 >> : std::true_type {};
 
+template <typename T, typename = void>
+struct has_abort_callback : std::false_type {};
+
+template <typename T>
+struct has_abort_callback<T, std::void_t<
+    decltype(std::declval<T &>().abort_callback),
+    decltype(std::declval<T &>().abort_callback_data)
+>> : std::true_type {};
+
+bool nucleo_abort_callback(void * /* data */) {
+    return g_cancel_requested.load();
+}
+
 struct LoadProgressState {
     int last_pct = -1;
 };
@@ -216,7 +289,7 @@ bool nucleo_load_progress_callback(float progress, void * user_data) {
 }
 
 template <typename ModelParams>
-void configure_model_load_params(ModelParams & mparams, LoadProgressState & progress_state) {
+void configure_model_load_params(ModelParams & mparams, LoadProgressState & progress_state, bool enable_extra_bufts) {
     if constexpr (has_use_mmap<ModelParams>::value) {
         mparams.use_mmap = true;
     }
@@ -224,20 +297,26 @@ void configure_model_load_params(ModelParams & mparams, LoadProgressState & prog
         mparams.use_mlock = false;
     }
     if constexpr (has_use_extra_bufts<ModelParams>::value) {
-        // Evita repacking em RAM (CPU_KLEIDIAI/REPACK) que duplica o modelo inteiro na memória e trava em Android.
-        mparams.use_extra_bufts = false;
+        mparams.use_extra_bufts = enable_extra_bufts;
     }
     if constexpr (has_progress_callback<ModelParams>::value) {
         mparams.progress_callback = nucleo_load_progress_callback;
         mparams.progress_callback_user_data = &progress_state;
     }
     LOGI(
-        "configure_model_load_params: has_mmap=%d, has_mlock=%d, has_extra_bufts=%d (disabled), has_progress_cb=%d",
-        has_use_mmap<ModelParams>::value ? 1 : 0,
-        has_use_mlock<ModelParams>::value ? 1 : 0,
+        "configure_model_load_params: mmap=1, mlock=0, has_extra_bufts=%d, use_extra_bufts=%d, has_progress_cb=%d",
         has_use_extra_bufts<ModelParams>::value ? 1 : 0,
+        enable_extra_bufts ? 1 : 0,
         has_progress_callback<ModelParams>::value ? 1 : 0
     );
+}
+
+template <typename ContextParams>
+void configure_context_params(ContextParams & cparams) {
+    if constexpr (has_abort_callback<ContextParams>::value) {
+        cparams.abort_callback = nucleo_abort_callback;
+        cparams.abort_callback_data = nullptr;
+    }
 }
 
 // Compatibilidade automática com assinaturas de llama_sampler_init_penalties (4 ou 5 argumentos com n_vocab)
@@ -393,18 +472,33 @@ Java_com_example_engine_LlamaCppNativeBridge_nativeLoadModel(
 
     unload_locked();
 
+    const uint64_t mem_avail_bytes = get_mem_available_bytes();
+    const double model_mb = static_cast<double>(file_size_bytes) / (1024.0 * 1024.0);
+    const double mem_avail_mb = static_cast<double>(mem_avail_bytes) / (1024.0 * 1024.0);
+    // Com -O3 + dotprod/fp16, repack KleidiAI é rápido; só desativa se a RAM livre estiver abaixo de modelo + 256 MB.
+    bool use_extra_bufts = (mem_avail_bytes == 0) || (mem_avail_bytes >= file_size_bytes + 256ULL * 1024ULL * 1024ULL);
+
     const auto load_t0 = std::chrono::steady_clock::now();
-    LOGI("nativeLoadModel: iniciando carga de %s (%.1f MB), n_ctx=%d",
+    LOGI("nativeLoadModel: iniciando carga de %s (%.1f MB), mem_avail=%.1f MB, extra_bufts=%d, n_ctx=%d",
          model_path.c_str(),
-         static_cast<double>(file_size_bytes) / (1024.0 * 1024.0),
+         model_mb,
+         mem_avail_mb,
+         use_extra_bufts ? 1 : 0,
          target_ctx);
 
     LoadProgressState progress_state{};
     llama_model_params mparams = llama_model_default_params();
-    configure_model_load_params(mparams, progress_state);
+    configure_model_load_params(mparams, progress_state, use_extra_bufts);
     mparams.n_gpu_layers = llama_supports_gpu_offload() ? 99 : 0;
 
     g_model = llama_model_load_from_file(model_path.c_str(), mparams);
+    if (g_model == nullptr && use_extra_bufts && !g_cancel_requested.load()) {
+        LOGI("Carga com extra_bufts falhou; tentando novamente em modo low-RAM (use_extra_bufts=0)...");
+        progress_state.last_pct = -1;
+        configure_model_load_params(mparams, progress_state, false);
+        g_model = llama_model_load_from_file(model_path.c_str(), mparams);
+        use_extra_bufts = false;
+    }
     if (g_model == nullptr) {
         if (g_cancel_requested.load()) {
             LOGI("Carga GGUF interrompida por cancelamento do usuário");
@@ -416,7 +510,8 @@ Java_com_example_engine_LlamaCppNativeBridge_nativeLoadModel(
 
     const auto load_t1 = std::chrono::steady_clock::now();
     const auto load_ms = std::chrono::duration_cast<std::chrono::milliseconds>(load_t1 - load_t0).count();
-    LOGI("llama_model_load_from_file concluído em %lld ms", static_cast<long long>(load_ms));
+    LOGI("llama_model_load_from_file concluído em %lld ms (extra_bufts=%d)",
+         static_cast<long long>(load_ms), use_extra_bufts ? 1 : 0);
 
     if (g_cancel_requested.load()) {
         LOGI("Carga abortada por cancelamento do usuário");
@@ -430,6 +525,7 @@ Java_com_example_engine_LlamaCppNativeBridge_nativeLoadModel(
     cparams.n_ubatch = 256;
     cparams.n_threads = recommended_decode_threads();
     cparams.n_threads_batch = recommended_prefill_threads();
+    configure_context_params(cparams);
 
     g_ctx = llama_init_from_model(g_model, cparams);
     if (g_ctx == nullptr) {
@@ -444,11 +540,13 @@ Java_com_example_engine_LlamaCppNativeBridge_nativeLoadModel(
 
     g_loaded_model_path = model_path;
     g_loaded_ctx_size = target_ctx;
-    LOGI("Contexto criado em %lld ms (n_ctx=%d, threads_decode=%d, threads_prefill=%d, hw_cores=%u)",
+    g_cached_tokens.clear();
+    LOGI("Contexto criado em %lld ms (n_ctx=%d, threads_decode=%d, threads_prefill=%d, big_cores=%d, hw_cores=%u)",
          static_cast<long long>(ctx_ms),
          target_ctx,
          cparams.n_threads,
          cparams.n_threads_batch,
+         detect_big_core_count(),
          std::thread::hardware_concurrency());
     return JNI_TRUE;
 }
@@ -505,9 +603,6 @@ Java_com_example_engine_LlamaCppNativeBridge_nativeGenerateStream(
         LOGE("Método onTokenBytes([B)V não encontrado no callback");
         return -2;
     }
-
-    // Limpa KV cache para nova inferência stateless a partir do histórico completo
-    llama_memory_clear(llama_get_memory(g_ctx), true);
 
     const jsize msg_count = env->GetArrayLength(jroles);
     std::vector<std::string> role_storage;
@@ -575,6 +670,11 @@ Java_com_example_engine_LlamaCppNativeBridge_nativeGenerateStream(
         prompt_text += "<|im_start|>assistant\n";
     }
 
+    const size_t last_ass_pos = prompt_text.rfind("assistant");
+    const bool prompt_opens_think = (last_ass_pos != std::string::npos) &&
+        (prompt_text.find("<think>", last_ass_pos) != std::string::npos) &&
+        (prompt_text.find("</think>", last_ass_pos) == std::string::npos);
+
     const llama_vocab * vocab = llama_model_get_vocab(g_model);
     const int32_t n_ctx = static_cast<int32_t>(llama_n_ctx(g_ctx));
 
@@ -613,33 +713,78 @@ Java_com_example_engine_LlamaCppNativeBridge_nativeGenerateStream(
         n_prompt_tokens = static_cast<int32_t>(prompt_tokens.size());
     }
 
-    LOGI("Prompt pronto: msgs=%d, template=%s, chars=%zu, tokens=%d, n_ctx=%d",
+    // Reaproveita prefixo comum no KV cache (llama_memory_seq_rm) entre mensagens da conversa
+    size_t n_match = 0;
+    const size_t max_common = std::min(g_cached_tokens.size(), prompt_tokens.size());
+    while (n_match < max_common && g_cached_tokens[n_match] == prompt_tokens[n_match]) {
+        ++n_match;
+    }
+    if (n_match > 0 && n_match == prompt_tokens.size()) {
+        // Mantém ao menos 1 token para gerar logits frescos no último passo do prefill
+        --n_match;
+    }
+
+    auto mem = llama_get_memory(g_ctx);
+    if (n_match == 0) {
+        llama_memory_clear(mem, true);
+    } else {
+        if (!llama_memory_seq_rm(mem, 0, static_cast<llama_pos>(n_match), -1)) {
+            LOGI("KV prefix trim indisponível em pos=%zu (modelo híbrido/recorrente); limpando cache", n_match);
+            llama_memory_clear(mem, true);
+            n_match = 0;
+        }
+    }
+    g_cached_tokens.resize(n_match);
+
+    const int32_t tokens_to_eval = n_prompt_tokens - static_cast<int32_t>(n_match);
+    LOGI("Prompt pronto: msgs=%d, template=%s, think_prefix=%d, chars=%zu, tokens=%d, kv_reuse=%zu, novos=%d, n_ctx=%d",
          static_cast<int>(msg_count),
          used_model_template ? "GGUF" : "ChatML-fallback",
+         prompt_opens_think ? 1 : 0,
          prompt_text.size(),
          n_prompt_tokens,
+         n_match,
+         tokens_to_eval,
          n_ctx);
 
-    // Prefill em chunks de até 256 tokens para manter cancelamento responsivo no mobile
+    // Prefill em chunks de até 64 tokens para logs granulares e cancelamento responsivo no mobile
     const auto prefill_t0 = std::chrono::steady_clock::now();
-    const int32_t chunk_size = 256;
-    for (int32_t offset = 0; offset < n_prompt_tokens; offset += chunk_size) {
+    const int32_t chunk_size = 64;
+    for (int32_t offset = static_cast<int32_t>(n_match); offset < n_prompt_tokens; offset += chunk_size) {
         if (g_cancel_requested.load()) {
             LOGI("Prefill cancelado em offset=%d/%d", offset, n_prompt_tokens);
+            llama_memory_clear(mem, true);
+            g_cached_tokens.clear();
             return 0;
         }
         const int32_t count = std::min(chunk_size, n_prompt_tokens - offset);
         llama_batch batch = llama_batch_get_one(prompt_tokens.data() + offset, count);
+        const auto chunk_t0 = std::chrono::steady_clock::now();
         const int decode_rc = llama_decode(g_ctx, batch);
+        const auto chunk_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - chunk_t0
+        ).count();
+        LOGI("Prefill chunk off=%d cnt=%d %lld ms", offset, count, static_cast<long long>(chunk_ms));
         if (decode_rc != 0) {
             LOGE("Erro em llama_decode durante prefill (rc=%d, offset=%d, count=%d)", decode_rc, offset, count);
+            llama_memory_clear(mem, true);
+            g_cached_tokens.clear();
             return -4;
         }
+        g_cached_tokens.insert(
+            g_cached_tokens.end(),
+            prompt_tokens.begin() + offset,
+            prompt_tokens.begin() + offset + count
+        );
     }
     const auto prefill_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - prefill_t0
     ).count();
-    LOGI("Prefill concluído em %lld ms (%d tokens)", static_cast<long long>(prefill_ms), n_prompt_tokens);
+    const double prefill_tps = (prefill_ms > 0)
+        ? (static_cast<double>(tokens_to_eval) * 1000.0 / static_cast<double>(prefill_ms))
+        : 0.0;
+    LOGI("Prefill concluído em %lld ms (%d novos/%d total tokens, %.2f tok/s)",
+         static_cast<long long>(prefill_ms), tokens_to_eval, n_prompt_tokens, prefill_tps);
 
     auto sparams = llama_sampler_chain_default_params();
     llama_sampler * smpl = llama_sampler_chain_init(sparams);
@@ -665,9 +810,18 @@ Java_com_example_engine_LlamaCppNativeBridge_nativeGenerateStream(
     }
 
     const int32_t available_gen = std::max(32, n_ctx - n_prompt_tokens - 4);
-    const int32_t safe_max_tokens = std::clamp(static_cast<int32_t>(max_tokens), 32, available_gen);
+    const int32_t requested_gen = std::max<int32_t>(32, max_tokens);
+    const int32_t think_floor = prompt_opens_think ? std::min<int32_t>(available_gen, 1536) : requested_gen;
+    int32_t safe_max_tokens = std::clamp(std::max(requested_gen, think_floor), 32, available_gen);
+    LOGI("Budget geração: requested=%d, safe_max_tokens=%d, available_gen=%d",
+         static_cast<int>(max_tokens), safe_max_tokens, available_gen);
+
     int32_t generated_count = 0;
     int32_t emitted_callbacks = 0;
+    bool emitted_think_header = false;
+    bool saw_open_think = prompt_opens_think;
+    bool saw_close_think = false;
+    std::string tag_scan_tail;
     std::string pending_utf8;
     std::vector<char> piece_buf(256);
     const auto gen_t0 = std::chrono::steady_clock::now();
@@ -690,13 +844,21 @@ Java_com_example_engine_LlamaCppNativeBridge_nativeGenerateStream(
             break;
         }
 
+        if (prompt_opens_think && !emitted_think_header) {
+            emitted_think_header = true;
+            if (emit_bytes_to_callback(env, callback, on_token_method, "<think>\n")) {
+                ++emitted_callbacks;
+            }
+        }
+
+        // special=true garante emissão literal de </think> e <think> no Qwen 3.5 (EOG já foi filtrado acima)
         int32_t n_piece = llama_token_to_piece(
             vocab,
             new_token,
             piece_buf.data(),
             static_cast<int32_t>(piece_buf.size()),
             0,
-            false
+            true
         );
         if (n_piece < 0) {
             piece_buf.resize(static_cast<size_t>(-n_piece));
@@ -706,11 +868,37 @@ Java_com_example_engine_LlamaCppNativeBridge_nativeGenerateStream(
                 piece_buf.data(),
                 static_cast<int32_t>(piece_buf.size()),
                 0,
-                false
+                true
             );
         }
 
         if (n_piece > 0) {
+            tag_scan_tail.append(piece_buf.data(), static_cast<size_t>(n_piece));
+            if (tag_scan_tail.size() > 64) {
+                tag_scan_tail.erase(0, tag_scan_tail.size() - 64);
+            }
+            if (!saw_open_think && tag_scan_tail.find("<think>") != std::string::npos) {
+                saw_open_think = true;
+                const int32_t extended = std::min<int32_t>(available_gen, std::max<int32_t>(requested_gen, 1536));
+                if (extended > safe_max_tokens) {
+                    safe_max_tokens = extended;
+                    LOGI("Thinking detectado no stream; budget ajustado para %d tokens (available=%d)",
+                         safe_max_tokens, available_gen);
+                }
+            }
+            if (saw_open_think && !saw_close_think && tag_scan_tail.find("</think>") != std::string::npos) {
+                saw_close_think = true;
+                const int32_t post_think_floor = std::min<int32_t>(
+                    available_gen,
+                    step + std::clamp(requested_gen, int32_t{256}, int32_t{512})
+                );
+                if (post_think_floor > safe_max_tokens) {
+                    safe_max_tokens = post_think_floor;
+                }
+                LOGI("</think> detectado no passo %d; reserva para resposta=%d tokens",
+                     step, safe_max_tokens - step);
+            }
+
             pending_utf8.append(piece_buf.data(), static_cast<size_t>(n_piece));
             const size_t valid_len = valid_utf8_prefix_len(pending_utf8);
             if (valid_len > 0) {
@@ -728,8 +916,11 @@ Java_com_example_engine_LlamaCppNativeBridge_nativeGenerateStream(
         const int step_rc = llama_decode(g_ctx, next_batch);
         if (step_rc != 0) {
             LOGE("Erro em llama_decode durante geração (rc=%d, step=%d)", step_rc, step);
+            llama_memory_clear(mem, true);
+            g_cached_tokens.clear();
             break;
         }
+        g_cached_tokens.push_back(new_token);
     }
 
     if (!pending_utf8.empty()) {
@@ -741,8 +932,11 @@ Java_com_example_engine_LlamaCppNativeBridge_nativeGenerateStream(
     const auto gen_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - gen_t0
     ).count();
-    LOGI("Geração finalizada: tokens=%d, callbacks=%d, tempo=%lld ms",
-         generated_count, emitted_callbacks, static_cast<long long>(gen_ms));
+    const double decode_tps = (gen_ms > 0)
+        ? (static_cast<double>(generated_count) * 1000.0 / static_cast<double>(gen_ms))
+        : 0.0;
+    LOGI("Geração finalizada: tokens=%d, callbacks=%d, tempo=%lld ms (%.2f tok/s)",
+         generated_count, emitted_callbacks, static_cast<long long>(gen_ms), decode_tps);
 
     llama_sampler_free(smpl);
     return generated_count;

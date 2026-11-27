@@ -18,6 +18,13 @@ option(NUCLEO_ENABLE_VULKAN "Habilitar backend Vulkan no ggml/llama.cpp" OFF)
 # ==============================================================================
 # Configurações e otimizações recomendadas pelo llama.cpp para Android (arm64)
 # ==============================================================================
+# Garante otimização -O3 -DNDEBUG para ggml/llama mesmo quando o Gradle rodar assembleDebug
+set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type" FORCE)
+set(CMAKE_C_FLAGS_DEBUG "-O3 -DNDEBUG" CACHE STRING "" FORCE)
+set(CMAKE_CXX_FLAGS_DEBUG "-O3 -DNDEBUG" CACHE STRING "" FORCE)
+set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG" CACHE STRING "" FORCE)
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG" CACHE STRING "" FORCE)
+
 # 1. Cross-compilation obrigatória: desabilita -march=native do host x86_64
 set(GGML_NATIVE OFF CACHE BOOL "" FORCE)
 
@@ -25,10 +32,10 @@ set(GGML_NATIVE OFF CACHE BOOL "" FORCE)
 #    no sistema Android; utiliza o threadpool nativo leve do ggml.
 set(GGML_OPENMP OFF CACHE BOOL "" FORCE)
 
-# 3. Arm KleidiAI: micro-kernels otimizados (NEON / DotProd / I8MM / SME)
-#    com detecção em tempo de execução para arm64-v8a.
+# 3. Arm KleidiAI + ISA alvo armv8.2-a+dotprod+fp16 (Cortex-A78, sem i8mm)
 if(ANDROID_ABI STREQUAL "arm64-v8a")
     set(GGML_CPU_KLEIDIAI ON CACHE BOOL "" FORCE)
+    set(GGML_CPU_ARM_ARCH "armv8.2-a+dotprod+fp16" CACHE STRING "" FORCE)
 else()
     set(GGML_CPU_KLEIDIAI OFF CACHE BOOL "" FORCE)
 endif()
@@ -50,6 +57,12 @@ else()
 endif()
 
 add_subdirectory("${LLAMA_CPP_DIR}" llama.cpp EXCLUDE_FROM_ALL)
+
+message(STATUS "[NucleoCMake] CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} | C_FLAGS_DEBUG=${CMAKE_C_FLAGS_DEBUG} | CXX_FLAGS_DEBUG=${CMAKE_CXX_FLAGS_DEBUG} | GGML_CPU_ARM_ARCH=${GGML_CPU_ARM_ARCH} | GGML_CPU_KLEIDIAI=${GGML_CPU_KLEIDIAI}")
+if(TARGET ggml-cpu)
+    get_target_property(_ggml_cpu_opts ggml-cpu COMPILE_OPTIONS)
+    message(STATUS "[NucleoCMake] ggml-cpu COMPILE_OPTIONS=${_ggml_cpu_opts}")
+endif()
 
 add_library(nucleo_llama SHARED
     nucleo_llama_jni.cpp

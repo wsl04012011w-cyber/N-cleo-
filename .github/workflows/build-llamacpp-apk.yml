@@ -20,11 +20,11 @@ on:
       build_variant:
         description: "Variante do APK (debug ou release)"
         required: false
-        default: "debug"
+        default: "release"
         type: choice
         options:
-          - debug
           - release
+          - debug
 
 concurrency:
   group: android-llamacpp-${{ github.ref }}
@@ -111,11 +111,23 @@ jobs:
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          VARIANT="${{ inputs.build_variant || 'debug' }}"
+          VARIANT="${{ inputs.build_variant || 'release' }}"
           VULKAN_FLAG="${{ inputs.enable_vulkan || false }}"
 
-          if [ "$VARIANT" = "release" ] && [ -n "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" ]; then
-            echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > my-upload-key.jks
+          if [ "$VARIANT" = "release" ]; then
+            if [ -n "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" ]; then
+              echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > my-upload-key.jks
+            else
+              echo "RELEASE_KEYSTORE_BASE64 ausente; convertendo debug.keystore (alias upload) para assinar assembleRelease"
+              rm -f my-upload-key.jks
+              keytool -importkeystore \
+                -srckeystore debug.keystore -srcstorepass android -srcalias androiddebugkey \
+                -destkeystore my-upload-key.jks -deststorepass android -destalias upload -destkeypass android \
+                -noprompt
+              export KEYSTORE_PATH="$GITHUB_WORKSPACE/my-upload-key.jks"
+              export STORE_PASSWORD="android"
+              export KEY_PASSWORD="android"
+            fi
             GRADLE_TASK="assembleRelease"
           else
             GRADLE_TASK="assembleDebug"
@@ -129,6 +141,11 @@ jobs:
 
       - name: Verify native library inside APK
         run: |
+          echo "=== CMakeCache (CMAKE_BUILD_TYPE / flags / ggml-cpu) ==="
+          find app/.cxx -name "CMakeCache.txt" -exec grep -E "CMAKE_BUILD_TYPE:|CMAKE_C_FLAGS(_DEBUG|_RELEASE)?:|CMAKE_CXX_FLAGS(_DEBUG|_RELEASE)?:|GGML_CPU_ARM_ARCH:|GGML_CPU_KLEIDIAI:" {} + || true
+          echo "=== Flags de compilação do ggml-cpu (build.ninja) ==="
+          find app/.cxx -name "build.ninja" -exec grep -A 4 "ggml-cpu" {} + | head -n 45 || true
+
           APK_PATH=$(find app/build/outputs/apk -name "*.apk" | head -n 1)
           echo "APK gerado: $APK_PATH"
           ls -lh "$APK_PATH"

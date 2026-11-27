@@ -38,6 +38,7 @@ android {
             "-DANDROID_STL=c++_shared",
             "-DANDROID_PLATFORM=android-28",
             "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON",
+            "-DGGML_CPU_ARM_ARCH=armv8.2-a+dotprod+fp16",
             "-DLLAMA_CPP_DIR=$llamaCppDirPath",
             "-DNUCLEO_ENABLE_VULKAN=${if (enableVulkan) "ON" else "OFF"}"
           )

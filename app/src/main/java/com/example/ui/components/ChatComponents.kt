@@ -541,16 +541,19 @@ fun AtomicMessageItem(
         }
     } else {
         var expandedDetails by remember { mutableStateOf(true) }
-        val (structuralBlock, mainBody) = remember(message.content) {
-            splitStructuralPreview(message.content)
+        val split = remember(message.content, isCurrentlyStreaming) {
+            splitAssistantContent(message.content, isCurrentlyStreaming)
         }
+        val showCursorInThinking = isCurrentlyStreaming &&
+            split.mainBody.isBlank() &&
+            split.collapsibleBody.isNotBlank()
 
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            if (structuralBlock.isNotBlank()) {
+            if (split.headerTitle.isNotBlank()) {
                 Row(
                     modifier = Modifier
                         .clickable { expandedDetails = !expandedDetails }
@@ -565,7 +568,7 @@ fun AtomicMessageItem(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (isCurrentlyStreaming) "Modo Estrutural..." else "Modo Estrutural",
+                        text = split.headerTitle,
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -578,7 +581,7 @@ fun AtomicMessageItem(
                     )
                 }
 
-                AnimatedVisibility(visible = expandedDetails) {
+                AnimatedVisibility(visible = expandedDetails && split.collapsibleBody.isNotBlank()) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -591,8 +594,14 @@ fun AtomicMessageItem(
                                 .background(MaterialTheme.colorScheme.outline)
                         )
                         Spacer(modifier = Modifier.width(12.dp))
+                        val thinkingText = buildString {
+                            append(split.collapsibleBody)
+                            if (showCursorInThinking) {
+                                append(if (cursorAlpha > 0.5f) " ▌" else " ")
+                            }
+                        }
                         Text(
-                            text = structuralBlock,
+                            text = thinkingText,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -600,7 +609,7 @@ fun AtomicMessageItem(
                 }
             }
 
-            if (isCurrentlyStreaming && mainBody.isBlank() && structuralBlock.isBlank()) {
+            if (isCurrentlyStreaming && split.mainBody.isBlank() && split.headerTitle.isBlank()) {
                 if (engineStatus == EngineState.INITIALIZING) {
                     SilverShimmerLoadingText(
                         text = "Carregando modelo...",
@@ -615,8 +624,8 @@ fun AtomicMessageItem(
                 }
             } else {
                 val displayText = buildString {
-                    append(mainBody)
-                    if (isCurrentlyStreaming) {
+                    append(split.mainBody)
+                    if (isCurrentlyStreaming && split.mainBody.isNotBlank()) {
                         append(if (cursorAlpha > 0.5f) " ▌" else " ")
                     }
                 }
@@ -670,17 +679,50 @@ fun AtomicMessageItem(
 private fun androidx.compose.material3.ColorScheme.surfaceHighOrContainer(): Color =
     surfaceContainerHigh
 
-private fun splitStructuralPreview(content: String): Pair<String, String> {
-    val marker = "[Modo Estrutural • Engine desacoplada]"
-    if (!content.startsWith(marker)) return "" to content
-    val body = content.removePrefix(marker).trimStart()
-    val splitToken = "Quando conectarmos a engine real"
-    val idx = body.indexOf(splitToken)
-    return if (idx >= 0) {
-        body.substring(0, idx).trim() to body.substring(idx).trim()
-    } else {
-        body to ""
+private data class AssistantSectionSplit(
+    val headerTitle: String,
+    val collapsibleBody: String,
+    val mainBody: String
+)
+
+private fun splitAssistantContent(
+    content: String,
+    isCurrentlyStreaming: Boolean
+): AssistantSectionSplit {
+    val structuralMarker = "[Modo Estrutural • Engine desacoplada]"
+    if (content.startsWith(structuralMarker)) {
+        val body = content.removePrefix(structuralMarker).trimStart()
+        val splitToken = "Quando conectarmos a engine real"
+        val idx = body.indexOf(splitToken)
+        val header = if (isCurrentlyStreaming) "Modo Estrutural..." else "Modo Estrutural"
+        return if (idx >= 0) {
+            AssistantSectionSplit(header, body.substring(0, idx).trim(), body.substring(idx).trim())
+        } else {
+            AssistantSectionSplit(header, body, "")
+        }
     }
+
+    val openTag = "<think>"
+    val closeTag = "</think>"
+    val openIdx = content.indexOf(openTag)
+    val closeIdx = content.indexOf(closeTag)
+
+    if (closeIdx >= 0) {
+        val thinkStart = if (openIdx in 0 until closeIdx) openIdx + openTag.length else 0
+        val thinkingBody = content.substring(thinkStart, closeIdx).trim()
+        val answerBody = content.substring(closeIdx + closeTag.length).trimStart()
+        val header = if (isCurrentlyStreaming && answerBody.isBlank()) "Pensando..." else "Pensamento"
+        return AssistantSectionSplit(header, thinkingBody, answerBody)
+    }
+
+    if (openIdx >= 0) {
+        val beforeThink = content.substring(0, openIdx).trim()
+        val thinkingBody = content.substring(openIdx + openTag.length).trimStart()
+        val header = if (isCurrentlyStreaming) "Pensando..." else "Pensamento"
+        return AssistantSectionSplit(header, thinkingBody, beforeThink)
+    }
+
+    return AssistantSectionSplit("", "", content)
 }
 
 @Composable
