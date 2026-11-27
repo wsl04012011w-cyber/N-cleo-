@@ -1,7 +1,11 @@
 package com.example.ui.screens
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.provider.OpenableColumns
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -32,20 +36,24 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.CloudDownload
+import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -55,6 +63,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -104,14 +113,39 @@ fun ModelsScreen(
     val searchQuery by viewModel.modelSearchQuery.collectAsStateWithLifecycle()
     val downloadStates by viewModel.downloadStates.collectAsStateWithLifecycle()
 
+    var showAddSourceSheet by remember { mutableStateOf(false) }
     var showAddCustomDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
 
-    val installedModels = remember(models) { models.filter { it.isInstalled } }
-    val popularModels = remember(models) { models.filter { !it.isInstalled } }
+    val importGgufLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val (fileName, sizeBytes) = resolvePickedFileMeta(context, uri)
+            viewModel.importLocalGguf(
+                sourceUri = uri,
+                fileName = fileName,
+                sizeBytes = sizeBytes,
+                onError = { err ->
+                    scope.launch { snackbarHostState.showSnackbar(err) }
+                }
+            )
+        }
+    }
+
+    val installedModels = remember(models, downloadStates) {
+        models.filter {
+            it.isInstalled || (it.id.startsWith("imported-") && downloadStates[it.id]?.status == DownloadStatus.DOWNLOADING)
+        }
+    }
+    val popularModels = remember(models, downloadStates) {
+        models.filter {
+            !it.isInstalled && !(it.id.startsWith("imported-") && downloadStates[it.id]?.status == DownloadStatus.DOWNLOADING)
+        }
+    }
 
     Scaffold(
         modifier = modifier
@@ -158,14 +192,14 @@ fun ModelsScreen(
                     }
 
                     IconButton(
-                        onClick = { showAddCustomDialog = true },
+                        onClick = { showAddSourceSheet = true },
                         modifier = Modifier
                             .minimumInteractiveComponentSize()
                             .testTag("add_custom_gguf_button")
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Add,
-                            contentDescription = "Adicionar link GGUF",
+                            contentDescription = "Importar ou adicionar GGUF",
                             tint = MaterialTheme.colorScheme.onBackground
                         )
                     }
@@ -287,6 +321,20 @@ fun ModelsScreen(
         }
     }
 
+    if (showAddSourceSheet) {
+        AddModelSourceBottomSheet(
+            onImportFromStorage = {
+                showAddSourceSheet = false
+                importGgufLauncher.launch(arrayOf("*/*"))
+            },
+            onAddByLink = {
+                showAddSourceSheet = false
+                showAddCustomDialog = true
+            },
+            onDismiss = { showAddSourceSheet = false }
+        )
+    }
+
     if (showAddCustomDialog) {
         AddCustomGgufDialog(
             onDismiss = { showAddCustomDialog = false },
@@ -391,24 +439,62 @@ private fun AtomicModelCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Link real Hugging Face GGUF
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 34.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainer)
-                    .clickable { onOpenLink(slot.downloadUrl) }
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
+            // Origem do modelo (link Hugging Face ou importado do aparelho)
+            if (slot.downloadUrl.isNotBlank()) {
                 Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 34.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainer)
+                        .clickable { onOpenLink(slot.downloadUrl) }
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = slot.repoSlug,
+                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = JetBrainsMonoFontFamily),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    IconButton(
+                        onClick = { onCopyLink(slot.downloadUrl) },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.ContentCopy,
+                            contentDescription = "Copiar link GGUF",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
+            } else {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 34.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainer)
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.OpenInNew,
+                        imageVector = Icons.Outlined.FolderOpen,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(14.dp)
@@ -420,17 +506,6 @@ private fun AtomicModelCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
-                    )
-                }
-                IconButton(
-                    onClick = { onCopyLink(slot.downloadUrl) },
-                    modifier = Modifier.size(28.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.ContentCopy,
-                        contentDescription = "Copiar link GGUF",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(14.dp)
                     )
                 }
             }
@@ -518,14 +593,17 @@ private fun AtomicModelCard(
                 }
             }
 
-            if (isError && downloadState?.errorMessage != null) {
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = downloadState.errorMessage,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TagRed,
-                    modifier = Modifier.padding(start = 34.dp)
-                )
+            if (isError) {
+                val errMsg = downloadState?.errorMessage
+                if (errMsg != null) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = errMsg,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TagRed,
+                        modifier = Modifier.padding(start = 34.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -554,7 +632,10 @@ private fun AtomicModelCard(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Cancelar download", style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                text = if (slot.downloadUrl.isBlank()) "Cancelar importação" else "Cancelar download",
+                                style = MaterialTheme.typography.titleSmall
+                            )
                         }
                     }
 
@@ -661,6 +742,136 @@ private fun ModelTagChip(tag: String) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AddModelSourceBottomSheet(
+    onImportFromStorage: () -> Unit,
+    onAddByLink: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 26.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Adicionar modelo",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = "Fechar",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+
+            Surface(
+                onClick = onImportFromStorage,
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 64.dp)
+                    .testTag("import_local_gguf_button")
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Outlined.FolderOpen,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Importar arquivo .gguf",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Selecionar modelo já salvo no armazenamento do aparelho",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            Surface(
+                onClick = onAddByLink,
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 64.dp)
+                    .testTag("add_link_gguf_button")
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Outlined.CloudDownload,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Baixar por link (Hugging Face)",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Colar URL direta de um arquivo .gguf",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun AddCustomGgufDialog(
     onDismiss: () -> Unit,
@@ -718,6 +929,26 @@ private fun AddCustomGgufDialog(
             }
         }
     )
+}
+
+private fun resolvePickedFileMeta(context: Context, uri: Uri): Pair<String, Long> {
+    var displayName = "modelo_local.gguf"
+    var sizeBytes = -1L
+    runCatching {
+        context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            val nameIdx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            val sizeIdx = cursor.getColumnIndex(OpenableColumns.SIZE)
+            if (cursor.moveToFirst()) {
+                if (nameIdx >= 0) {
+                    cursor.getString(nameIdx)?.takeIf { it.isNotBlank() }?.let { displayName = it }
+                }
+                if (sizeIdx >= 0 && !cursor.isNull(sizeIdx)) {
+                    sizeBytes = cursor.getLong(sizeIdx)
+                }
+            }
+        }
+    }
+    return displayName to sizeBytes
 }
 
 private fun formatBytes(bytes: Long): String {

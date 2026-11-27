@@ -78,6 +78,7 @@ fun ChatScreen(
     val draftInput by viewModel.draftInput.collectAsStateWithLifecycle()
     val pendingAttachments by viewModel.pendingAttachments.collectAsStateWithLifecycle()
     val isGenerating by viewModel.isGenerating.collectAsStateWithLifecycle()
+    val engineStatus by viewModel.engineStatus.collectAsStateWithLifecycle()
     val preferences by viewModel.preferences.collectAsStateWithLifecycle()
 
     var showModelSheet by remember { mutableStateOf(false) }
@@ -172,6 +173,7 @@ fun ChatScreen(
                                     message = message,
                                     isCurrentlyStreaming = isStreamingThis,
                                     showTelemetry = preferences.showTokenTelemetry,
+                                    engineStatus = engineStatus,
                                     onCopyContent = { text ->
                                         clipboardManager.setText(AnnotatedString(text))
                                         scope.launch {

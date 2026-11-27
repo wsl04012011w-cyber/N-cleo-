@@ -1,5 +1,6 @@
 package com.example.data.repository
 
+import android.net.Uri
 import com.example.data.download.ModelDownloadManager
 import com.example.data.download.ModelDownloadState
 import com.example.data.local.AssistantPresetEntity
@@ -19,10 +20,12 @@ import com.example.engine.GenerationParameters
 import com.example.engine.InferenceEngine
 import com.example.engine.InferenceRequest
 import com.example.ui.theme.AppThemeMode
+import com.example.util.NucleoLogger
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.util.Locale
 import java.util.UUID
 
 class NucleoRepository(
@@ -90,6 +93,7 @@ class NucleoRepository(
     }
 
     suspend fun selectModelSlot(slotId: String) {
+        NucleoLogger.i("Models", "Selecionando modelo ativo: $slotId")
         modelSlotDao.clearActive()
         modelSlotDao.markActive(slotId)
     }
@@ -111,8 +115,77 @@ class NucleoRepository(
         }
     }
 
-    fun cancelModelDownload(slotId: String) {
+    suspend fun importLocalGgufModel(
+        sourceUri: Uri,
+        fileName: String,
+        sizeBytes: Long,
+        onError: (String) -> Unit
+    ): ModelSlotEntity {
+        val id = "imported-${UUID.randomUUID().toString().take(8)}"
+        val cleanFile = fileName.trim().ifBlank { "modelo_local.gguf" }
+        val baseName = cleanFile.removeSuffix(".gguf").removeSuffix(".GGUF")
+        val family = detectModelFamily(baseName)
+        val quant = detectQuantization(baseName)
+        val displayName = baseName
+            .replace(Regex("[-_.]?(Q\\d+_[A-Z0-9_]+|IQ\\d+_[A-Z0-9_]+|F16|BF16)$", RegexOption.IGNORE_CASE), "")
+            .replace('-', ' ')
+            .replace('_', ' ')
+            .trim()
+            .ifBlank { baseName }
+
+        val slot = ModelSlotEntity(
+            id = id,
+            displayName = displayName,
+            family = family,
+            quantizationLabel = quant,
+            parameterSizeLabel = "Local",
+            sizeLabel = if (sizeBytes > 0L) formatSizeLabel(sizeBytes) else "GGUF",
+            tagsCsv = "local,importado",
+            downloadUrl = "",
+            repoSlug = "Importado do aparelho • $cleanFile",
+            isInstalled = false,
+            supportsVision = baseName.contains("vision", true) ||
+                baseName.contains("vl", true) ||
+                baseName.contains("llava", true) ||
+                baseName.contains("qwen3.5", true),
+            contextLength = 4096,
+            estimatedRamGb = if (sizeBytes > 0L) ((sizeBytes / (1024f * 1024f * 1024f)) * 1.25f).coerceAtLeast(0.5f) else 2.0f,
+            description = "Modelo GGUF importado diretamente do armazenamento do dispositivo.",
+            isActive = false,
+            engineState = ModelEngineSlotState.STRUCTURAL_READY
+        )
+        modelSlotDao.insert(slot)
+        NucleoLogger.i("ModelImport", "Slot criado para importação: id=$id, nome=$displayName, quant=$quant, file=$cleanFile")
+
+        modelDownloadManager.importLocalGguf(
+            modelId = id,
+            sourceUri = sourceUri,
+            onCompleted = { localPath, totalBytes ->
+                modelSlotDao.updateInstallState(
+                    id = id,
+                    installed = true,
+                    localFilePath = localPath,
+                    downloadedBytes = totalBytes
+                )
+                modelSlotDao.clearActive()
+                modelSlotDao.markActive(id)
+            },
+            onError = { errorMsg ->
+                modelSlotDao.deleteById(id)
+                onError(errorMsg)
+            }
+        )
+        return slot
+    }
+
+    suspend fun cancelModelDownload(slotId: String) {
         modelDownloadManager.cancelDownload(slotId)
+        if (slotId.startsWith("imported-")) {
+            val slot = modelSlotDao.getById(slotId)
+            if (slot != null && !slot.isInstalled) {
+                modelSlotDao.deleteById(slotId)
+            }
+        }
     }
 
     fun clearDownloadError(slotId: String) {
@@ -126,14 +199,7 @@ class NucleoRepository(
     ): ModelSlotEntity {
         val cleanUrl = downloadUrl.trim()
         val id = "custom-${UUID.randomUUID().toString().take(8)}"
-        val family = when {
-            displayName.contains("qwen", true) || cleanUrl.contains("qwen", true) -> "Qwen"
-            displayName.contains("gemma", true) || cleanUrl.contains("gemma", true) -> "Gemma"
-            displayName.contains("llama", true) || cleanUrl.contains("llama", true) -> "Llama"
-            displayName.contains("phi", true) || cleanUrl.contains("phi", true) -> "Phi"
-            displayName.contains("lfm", true) || cleanUrl.contains("lfm", true) -> "LFM"
-            else -> "GGUF"
-        }
+        val family = detectModelFamily("$displayName $cleanUrl")
         val slug = cleanUrl
             .removePrefix("https://huggingface.co/")
             .substringBefore("/resolve/")
@@ -166,14 +232,19 @@ class NucleoRepository(
 
     suspend fun uninstallModelSlot(slotId: String) {
         val current = modelSlotDao.getById(slotId) ?: return
+        NucleoLogger.i("Models", "Removendo modelo: $slotId (${current.localFilePath})")
         modelDownloadManager.deleteLocalFile(current.localFilePath)
         modelDownloadManager.clearDownloadState(slotId)
-        modelSlotDao.updateInstallState(
-            id = slotId,
-            installed = false,
-            localFilePath = null,
-            downloadedBytes = 0L
-        )
+        if (slotId.startsWith("imported-") || slotId.startsWith("custom-")) {
+            modelSlotDao.deleteById(slotId)
+        } else {
+            modelSlotDao.updateInstallState(
+                id = slotId,
+                installed = false,
+                localFilePath = null,
+                downloadedBytes = 0L
+            )
+        }
         if (current.isActive) {
             modelSlotDao.clearActive()
             val nextInstalled = modelSlotDao.getById("slot-lfm-2-700m")?.takeIf { it.isInstalled && it.id != slotId }
@@ -181,6 +252,27 @@ class NucleoRepository(
                 modelSlotDao.markActive(nextInstalled.id)
             }
         }
+    }
+
+    private fun detectModelFamily(hint: String): String = when {
+        hint.contains("qwen", true) -> "Qwen"
+        hint.contains("gemma", true) -> "Gemma"
+        hint.contains("llama", true) -> "Llama"
+        hint.contains("phi", true) -> "Phi"
+        hint.contains("lfm", true) -> "LFM"
+        else -> "GGUF"
+    }
+
+    private fun detectQuantization(fileName: String): String {
+        val match = Regex("(I?Q\\d+_[A-Z0-9_]+|B?F16)", RegexOption.IGNORE_CASE).find(fileName)
+        return match?.value?.uppercase(Locale.US) ?: "GGUF"
+    }
+
+    private fun formatSizeLabel(bytes: Long): String {
+        val mb = bytes / (1024.0 * 1024.0)
+        val gb = mb / 1024.0
+        return if (gb >= 1.0) String.format(Locale.US, "%.2f GB", gb)
+        else String.format(Locale.US, "%.0f MB", mb)
     }
 
     suspend fun createConversation(

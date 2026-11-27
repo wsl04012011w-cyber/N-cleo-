@@ -1,5 +1,6 @@
 package com.example.ui.viewmodel
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -15,6 +16,7 @@ import com.example.engine.EngineCapabilities
 import com.example.engine.EngineState
 import com.example.engine.GenerationParameters
 import com.example.ui.theme.AppThemeMode
+import com.example.util.NucleoLogger
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -331,6 +333,10 @@ class NucleoViewModel(
 
             try {
                 val modelSlot = activeModelSlot.value ?: repository.getActiveModelSlot()
+                NucleoLogger.i(
+                    "Chat",
+                    "Enviando mensagem (${effectivePrompt.length} chars) usando modelo '${modelSlot.displayName}' (installed=${modelSlot.isInstalled}, path=${modelSlot.localFilePath})"
+                )
                 val existingConv = activeConversation.value
                 val conversation = if (existingConv != null) {
                     existingConv
@@ -361,18 +367,36 @@ class NucleoViewModel(
                 )
                 assistantMessageId = pending.id
 
+                var lastDbFlushMs = 0L
+                var lastFlushedLen = 0
                 repository.streamInference(conversation, effectivePrompt, attachmentsToSend, modelSlot).collect { chunk ->
                     if (chunk.deltaText.isNotEmpty()) {
                         accumulated.append(chunk.deltaText)
                     }
                     lastTokens = chunk.tokensGenerated
                     lastElapsed = chunk.elapsedMs
-                    repository.updateStreamingAssistantMessage(
-                        messageId = pending.id,
-                        content = accumulated.toString(),
-                        tokenCount = lastTokens,
-                        durationMs = lastElapsed
-                    )
+
+                    val now = System.currentTimeMillis()
+                    val shouldFlush = chunk.isFinished ||
+                        (lastFlushedLen == 0 && accumulated.isNotEmpty()) ||
+                        (now - lastDbFlushMs >= 90L && accumulated.length != lastFlushedLen)
+
+                    if (shouldFlush) {
+                        lastDbFlushMs = now
+                        lastFlushedLen = accumulated.length
+                        repository.updateStreamingAssistantMessage(
+                            messageId = pending.id,
+                            content = accumulated.toString(),
+                            tokenCount = lastTokens,
+                            durationMs = lastElapsed
+                        )
+                    }
+                }
+            } catch (t: Throwable) {
+                if (t is kotlinx.coroutines.CancellationException) throw t
+                NucleoLogger.e("Chat", "Erro no fluxo de geração", t)
+                if (accumulated.isEmpty()) {
+                    accumulated.append("[Erro ao gerar resposta: ${t.message ?: "falha inesperada"}]")
                 }
             } finally {
                 val id = assistantMessageId
@@ -390,6 +414,9 @@ class NucleoViewModel(
     }
 
     fun stopGeneration() {
+        if (_isGenerating.value) {
+            NucleoLogger.i("Chat", "Geração interrompida pelo usuário")
+        }
         activeGenerationJob?.cancel()
         activeGenerationJob = null
         _isGenerating.value = false
@@ -490,11 +517,29 @@ class NucleoViewModel(
     }
 
     fun cancelModelDownload(slotId: String) {
-        repository.cancelModelDownload(slotId)
+        viewModelScope.launch {
+            repository.cancelModelDownload(slotId)
+        }
     }
 
     fun clearDownloadError(slotId: String) {
         repository.clearDownloadError(slotId)
+    }
+
+    fun importLocalGguf(
+        sourceUri: Uri,
+        fileName: String,
+        sizeBytes: Long,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            repository.importLocalGgufModel(
+                sourceUri = sourceUri,
+                fileName = fileName,
+                sizeBytes = sizeBytes,
+                onError = onError
+            )
+        }
     }
 
     fun addAndDownloadCustomGguf(

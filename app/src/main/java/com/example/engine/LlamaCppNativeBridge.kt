@@ -1,5 +1,7 @@
 package com.example.engine
 
+import com.example.util.NucleoLogger
+
 /**
  * Ponte JNI para a biblioteca nativa `libnucleo_llama.so` compilada com llama.cpp.
  * Em builds sem NDK/llama.cpp (ex.: preview rápido), `isNativeLoaded` permanece false
@@ -7,10 +9,14 @@ package com.example.engine
  */
 object LlamaCppNativeBridge {
 
+    var loadErrorMessage: String? = null
+        private set
+
     val isNativeLoaded: Boolean = try {
         System.loadLibrary("nucleo_llama")
         true
-    } catch (_: UnsatisfiedLinkError) {
+    } catch (t: UnsatisfiedLinkError) {
+        loadErrorMessage = t.message ?: "UnsatisfiedLinkError"
         false
     }
 
@@ -19,6 +25,8 @@ object LlamaCppNativeBridge {
     }
 
     external fun nativeSystemInfo(): String
+
+    external fun nativeDrainLogs(): Array<String>
 
     external fun nativeLoadModel(
         modelPath: String,
@@ -39,4 +47,12 @@ object LlamaCppNativeBridge {
         maxTokens: Int,
         callback: TokenCallback
     ): Int
+
+    fun drainLogsToLogger() {
+        if (!isNativeLoaded) return
+        val lines = runCatching { nativeDrainLogs() }.getOrNull() ?: return
+        for (line in lines) {
+            NucleoLogger.native(line)
+        }
+    }
 }

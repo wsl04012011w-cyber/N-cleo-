@@ -66,6 +66,9 @@ interface ModelSlotDao {
     @Query("UPDATE model_slots SET isInstalled = :installed, localFilePath = :localFilePath, downloadedBytes = :downloadedBytes WHERE id = :id")
     suspend fun updateInstallState(id: String, installed: Boolean, localFilePath: String?, downloadedBytes: Long)
 
+    @Query("DELETE FROM model_slots WHERE id = :id")
+    suspend fun deleteById(id: String)
+
     @Query("SELECT COUNT(*) FROM model_slots")
     suspend fun count(): Int
 }

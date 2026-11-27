@@ -3,13 +3,17 @@ package com.example.engine
 import android.content.Context
 import android.net.Uri
 import com.example.data.local.MessageRole
+import com.example.util.NucleoLogger
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
 import java.nio.charset.StandardCharsets
@@ -34,7 +38,13 @@ class LlamaCppInferenceEngine(
         val modelPath = request.modelSlot.localFilePath
         val modelFile = if (!modelPath.isNullOrBlank()) File(modelPath) else null
 
+        NucleoLogger.i(
+            "Inference",
+            "Iniciando inferência: slot=${request.modelSlot.id} (${request.modelSlot.displayName}), path=${modelPath ?: "null"}, exists=${modelFile?.exists() == true}, size=${modelFile?.length() ?: 0L}"
+        )
+
         if (modelFile == null || !modelFile.exists() || modelFile.length() <= 0L) {
+            NucleoLogger.w("Inference", "Arquivo GGUF ausente ou vazio para slot=${request.modelSlot.id}")
             _status.value = EngineState.UNCONFIGURED
             trySend(
                 GenerationChunk(
@@ -49,35 +59,60 @@ class LlamaCppInferenceEngine(
             return@callbackFlow
         }
 
+        var finishedNormally = false
+        val logPoller = launch(Dispatchers.IO) {
+            while (isActive) {
+                LlamaCppNativeBridge.drainLogsToLogger()
+                delay(350L)
+            }
+        }
+
         val job = launch(Dispatchers.IO) {
             val startedAt = System.currentTimeMillis()
             var tokenCount = 0
+            var emittedChars = 0
 
             try {
                 _status.value = EngineState.INITIALIZING
                 val ctxSize = request.modelSlot.contextLength.coerceIn(1024, 4096)
+                NucleoLogger.i("Inference", "Carregando modelo nativo (ctx=$ctxSize)...")
                 val loaded = LlamaCppNativeBridge.nativeLoadModel(modelFile.absolutePath, ctxSize)
+                LlamaCppNativeBridge.drainLogsToLogger()
+
                 if (!loaded) {
+                    NucleoLogger.e("Inference", "nativeLoadModel retornou false para ${modelFile.absolutePath}")
                     _status.value = EngineState.ERROR
                     trySend(
                         GenerationChunk(
-                            deltaText = "Não foi possível carregar o arquivo GGUF em `${modelFile.name}`. Verifique se o download foi concluído ou se há RAM disponível.",
+                            deltaText = "Não foi possível carregar o arquivo GGUF em `${modelFile.name}`. Verifique o log em `Downloads/NucleoChat` ou se há RAM disponível.",
                             isFinished = true,
                             tokensGenerated = 0,
                             elapsedMs = System.currentTimeMillis() - startedAt
                         )
                     )
+                    finishedNormally = true
                     close()
                     return@launch
                 }
 
                 _status.value = EngineState.GENERATING
                 val (roles, contents) = buildChatArrays(request)
+                NucleoLogger.i(
+                    "Inference",
+                    "Disparando nativeGenerateStream: msgs=${roles.size}, temp=${request.parameters.temperature}, topP=${request.parameters.topP}, topK=${request.parameters.topK}, maxTokens=${request.parameters.maxTokens}"
+                )
 
                 val callback = object : LlamaCppNativeBridge.TokenCallback {
                     override fun onTokenBytes(bytes: ByteArray) {
                         val piece = String(bytes, StandardCharsets.UTF_8)
                         tokenCount += 1
+                        emittedChars += piece.length
+                        if (tokenCount == 1) {
+                            NucleoLogger.i(
+                                "Inference",
+                                "Primeiro chunk recebido em ${System.currentTimeMillis() - startedAt} ms (${piece.length} chars)"
+                            )
+                        }
                         trySend(
                             GenerationChunk(
                                 deltaText = piece,
@@ -99,15 +134,31 @@ class LlamaCppInferenceEngine(
                     maxTokens = request.parameters.maxTokens,
                     callback = callback
                 )
+                LlamaCppNativeBridge.drainLogsToLogger()
 
                 val elapsed = System.currentTimeMillis() - startedAt
+                NucleoLogger.i(
+                    "Inference",
+                    "nativeGenerateStream retornou result=$result, callbacks=$tokenCount, chars=$emittedChars, elapsed=${elapsed}ms"
+                )
+
                 if (result < 0) {
                     _status.value = EngineState.ERROR
                     trySend(
                         GenerationChunk(
-                            deltaText = "\n\n[Erro nativo llama.cpp: código $result]",
+                            deltaText = "\n\n[Erro nativo llama.cpp: código $result. Consulte Downloads/NucleoChat]",
                             isFinished = true,
                             tokensGenerated = tokenCount,
+                            elapsedMs = elapsed
+                        )
+                    )
+                } else if (emittedChars == 0 && isActive) {
+                    _status.value = EngineState.READY
+                    trySend(
+                        GenerationChunk(
+                            deltaText = "[O modelo não retornou texto visível (tokens=$result). Consulte os detalhes em Downloads/NucleoChat.]",
+                            isFinished = true,
+                            tokensGenerated = result.coerceAtLeast(tokenCount),
                             elapsedMs = elapsed
                         )
                     )
@@ -122,7 +173,12 @@ class LlamaCppInferenceEngine(
                         )
                     )
                 }
+                finishedNormally = true
+            } catch (ce: CancellationException) {
+                NucleoLogger.i("Inference", "Inferência cancelada após ${System.currentTimeMillis() - startedAt} ms")
+                throw ce
             } catch (t: Throwable) {
+                NucleoLogger.e("Inference", "Exceção durante inferência local", t)
                 _status.value = EngineState.ERROR
                 trySend(
                     GenerationChunk(
@@ -132,7 +188,10 @@ class LlamaCppInferenceEngine(
                         elapsedMs = System.currentTimeMillis() - startedAt
                     )
                 )
+                finishedNormally = true
             } finally {
+                logPoller.cancel()
+                LlamaCppNativeBridge.drainLogsToLogger()
                 if (_status.value == EngineState.GENERATING || _status.value == EngineState.INITIALIZING) {
                     _status.value = EngineState.READY
                 }
@@ -141,8 +200,12 @@ class LlamaCppInferenceEngine(
         }
 
         awaitClose {
-            LlamaCppNativeBridge.nativeCancel()
+            if (!finishedNormally) {
+                LlamaCppNativeBridge.nativeCancel()
+            }
+            logPoller.cancel()
             job.cancel()
+            LlamaCppNativeBridge.drainLogsToLogger()
         }
     }
 

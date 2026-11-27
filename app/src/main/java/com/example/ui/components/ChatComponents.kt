@@ -88,6 +88,7 @@ import com.example.data.local.ConversationEntity
 import com.example.data.local.MessageEntity
 import com.example.data.local.MessageRole
 import com.example.engine.ChatAttachment
+import com.example.engine.EngineState
 import com.example.ui.theme.JetBrainsMonoFontFamily
 import java.util.Locale
 
@@ -401,7 +402,8 @@ fun AtomicMessageItem(
     message: MessageEntity,
     isCurrentlyStreaming: Boolean,
     showTelemetry: Boolean,
-    onCopyContent: (String) -> Unit
+    onCopyContent: (String) -> Unit,
+    engineStatus: EngineState = EngineState.GENERATING
 ) {
     val isUser = message.role == MessageRole.USER
     val infiniteTransition = rememberInfiniteTransition(label = "stream_cursor")
@@ -529,19 +531,30 @@ fun AtomicMessageItem(
                 }
             }
 
-            val displayText = buildString {
-                append(mainBody)
-                if (isCurrentlyStreaming) {
-                    append(if (cursorAlpha > 0.5f) " ▌" else " ")
+            if (isCurrentlyStreaming && mainBody.isBlank() && structuralBlock.isBlank()) {
+                val waitingLabel = when (engineStatus) {
+                    EngineState.INITIALIZING -> "Carregando modelo..."
+                    else -> "Gerando resposta..."
                 }
-            }.ifBlank { if (isCurrentlyStreaming && structuralBlock.isBlank()) "Gerando..." else "" }
-
-            if (displayText.isNotBlank()) {
                 Text(
-                    text = displayText,
+                    text = waitingLabel,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onBackground
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            } else {
+                val displayText = buildString {
+                    append(mainBody)
+                    if (isCurrentlyStreaming) {
+                        append(if (cursorAlpha > 0.5f) " ▌" else " ")
+                    }
+                }
+                if (displayText.isNotBlank()) {
+                    Text(
+                        text = displayText,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                }
             }
 
             if (!isCurrentlyStreaming && message.content.isNotBlank()) {

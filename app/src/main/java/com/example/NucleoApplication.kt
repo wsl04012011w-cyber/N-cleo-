@@ -9,8 +9,21 @@ import com.example.engine.InferenceEngine
 import com.example.engine.LlamaCppInferenceEngine
 import com.example.engine.LlamaCppNativeBridge
 import com.example.engine.StructuralPreviewEngine
+import com.example.util.NucleoLogger
 
 class NucleoApplication : Application() {
+
+    override fun onCreate() {
+        super.onCreate()
+        NucleoLogger.init(this)
+        if (LlamaCppNativeBridge.isNativeLoaded) {
+            val sysInfo = runCatching { LlamaCppNativeBridge.nativeSystemInfo() }.getOrElse { "erro: ${it.message}" }
+            NucleoLogger.i("Engine", "libnucleo_llama.so carregada! SystemInfo=$sysInfo")
+            LlamaCppNativeBridge.drainLogsToLogger()
+        } else {
+            NucleoLogger.w("Engine", "libnucleo_llama.so NÃO carregada (${LlamaCppNativeBridge.loadErrorMessage ?: "sem NDK"}). Usando StructuralPreviewEngine.")
+        }
+    }
 
     val database: NucleoDatabase by lazy { NucleoDatabase.getInstance(this) }
     val preferencesDataStore: UserPreferencesDataStore by lazy { UserPreferencesDataStore(this) }

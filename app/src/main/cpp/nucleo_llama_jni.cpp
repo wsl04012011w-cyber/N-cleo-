@@ -4,7 +4,12 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cstdarg>
+#include <cstdint>
+#include <cstdio>
 #include <cstring>
+#include <deque>
+#include <fstream>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -15,10 +20,63 @@
 #include "llama.h"
 
 #define LOG_TAG "NucleoLlamaJNI"
-#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
 namespace {
+
+std::mutex g_log_mutex;
+std::deque<std::string> g_log_queue;
+std::string g_pending_llama_line;
+constexpr size_t kMaxBufferedLogLines = 500;
+
+void push_log_line_locked(const std::string & line) {
+    if (line.empty()) return;
+    if (g_log_queue.size() >= kMaxBufferedLogLines) {
+        g_log_queue.pop_front();
+    }
+    g_log_queue.push_back(line);
+}
+
+void log_printf(int prio, const char * fmt, ...) {
+    char buf[1024];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, args);
+    va_end(args);
+
+    __android_log_print(prio, LOG_TAG, "%s", buf);
+    std::lock_guard<std::mutex> lock(g_log_mutex);
+    push_log_line_locked(std::string("[JNI] ") + buf);
+}
+
+#define LOGI(...) log_printf(ANDROID_LOG_INFO, __VA_ARGS__)
+#define LOGE(...) log_printf(ANDROID_LOG_ERROR, __VA_ARGS__)
+
+void nucleo_llama_log_callback(ggml_log_level level, const char * text, void * /* user_data */) {
+    if (text == nullptr) return;
+    const int prio = (level == GGML_LOG_LEVEL_ERROR)
+        ? ANDROID_LOG_ERROR
+        : (level == GGML_LOG_LEVEL_WARN ? ANDROID_LOG_WARN : ANDROID_LOG_INFO);
+
+    __android_log_print(prio, LOG_TAG, "%s", text);
+
+    std::lock_guard<std::mutex> lock(g_log_mutex);
+    g_pending_llama_line += text;
+    size_t pos = 0;
+    while ((pos = g_pending_llama_line.find('\n')) != std::string::npos) {
+        std::string line = g_pending_llama_line.substr(0, pos);
+        g_pending_llama_line.erase(0, pos + 1);
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+        if (!line.empty()) {
+            push_log_line_locked(line);
+        }
+    }
+    if (g_pending_llama_line.size() > 1024) {
+        push_log_line_locked(g_pending_llama_line);
+        g_pending_llama_line.clear();
+    }
+}
 
 std::mutex g_engine_mutex;
 llama_model * g_model = nullptr;
@@ -31,7 +89,9 @@ std::atomic<bool> g_backend_initialized{false};
 void ensure_backend_init() {
     bool expected = false;
     if (g_backend_initialized.compare_exchange_strong(expected, true)) {
+        llama_log_set(nucleo_llama_log_callback, nullptr);
         llama_backend_init();
+        LOGI("llama_backend_init concluído; gpu_offload=%d", llama_supports_gpu_offload() ? 1 : 0);
     }
 }
 
@@ -51,13 +111,43 @@ void unload_locked() {
 int recommended_decode_threads() {
     int cores = static_cast<int>(std::thread::hardware_concurrency());
     if (cores <= 0) return 4;
+    // Em SoCs Android big.LITTLE, limitar a 4 threads evita contenção em núcleos LITTLE lentos.
     return std::clamp(cores / 2, 2, 4);
 }
 
 int recommended_prefill_threads() {
     int cores = static_cast<int>(std::thread::hardware_concurrency());
     if (cores <= 0) return 4;
-    return std::clamp(cores - 2, 2, 6);
+    return std::clamp(cores / 2, 2, 4);
+}
+
+bool verify_gguf_file(const std::string & path, uint64_t & out_size_bytes) {
+    out_size_bytes = 0;
+    std::ifstream file(path, std::ios::binary | std::ios::ate);
+    if (!file.is_open()) {
+        LOGE("Não foi possível abrir arquivo GGUF: %s", path.c_str());
+        return false;
+    }
+    const std::ifstream::pos_type end_pos = file.tellg();
+    if (end_pos <= 16) {
+        LOGE("Arquivo GGUF pequeno demais ou inválido (%lld bytes): %s",
+             static_cast<long long>(end_pos), path.c_str());
+        return false;
+    }
+    out_size_bytes = static_cast<uint64_t>(end_pos);
+    file.seekg(0, std::ios::beg);
+    char magic[4] = {0, 0, 0, 0};
+    file.read(magic, 4);
+    if (!file || magic[0] != 'G' || magic[1] != 'G' || magic[2] != 'U' || magic[3] != 'F') {
+        LOGE("Assinatura GGUF inválida (%02X %02X %02X %02X) em %s",
+             static_cast<unsigned char>(magic[0]),
+             static_cast<unsigned char>(magic[1]),
+             static_cast<unsigned char>(magic[2]),
+             static_cast<unsigned char>(magic[3]),
+             path.c_str());
+        return false;
+    }
+    return true;
 }
 
 // Compatibilidade automática com assinaturas de llama_chat_apply_template (6 ou 7 argumentos)
@@ -146,13 +236,23 @@ size_t valid_utf8_prefix_len(const std::string & s) {
     return i;
 }
 
-void emit_bytes_to_callback(JNIEnv * env, jobject callback, jmethodID on_token_method, const std::string & chunk) {
-    if (chunk.empty()) return;
+bool emit_bytes_to_callback(JNIEnv * env, jobject callback, jmethodID on_token_method, const std::string & chunk) {
+    if (chunk.empty()) return true;
     jbyteArray arr = env->NewByteArray(static_cast<jsize>(chunk.size()));
-    if (arr == nullptr) return;
+    if (arr == nullptr) {
+        LOGE("Falha ao alocar jbyteArray de %zu bytes", chunk.size());
+        return false;
+    }
     env->SetByteArrayRegion(arr, 0, static_cast<jsize>(chunk.size()), reinterpret_cast<const jbyte *>(chunk.data()));
     env->CallVoidMethod(callback, on_token_method, arr);
     env->DeleteLocalRef(arr);
+    if (env->ExceptionCheck()) {
+        LOGE("Exceção Java lançada dentro de onTokenBytes");
+        env->ExceptionDescribe();
+        env->ExceptionClear();
+        return false;
+    }
+    return true;
 }
 
 std::string jstring_to_std(JNIEnv * env, jstring jstr) {
@@ -178,6 +278,40 @@ Java_com_example_engine_LlamaCppNativeBridge_nativeSystemInfo(
     return env->NewStringUTF(info != nullptr ? info : "llama.cpp arm64");
 }
 
+JNIEXPORT jobjectArray JNICALL
+Java_com_example_engine_LlamaCppNativeBridge_nativeDrainLogs(
+    JNIEnv * env,
+    jobject /* thiz */
+) {
+    std::deque<std::string> drained;
+    {
+        std::lock_guard<std::mutex> lock(g_log_mutex);
+        if (!g_pending_llama_line.empty()) {
+            push_log_line_locked(g_pending_llama_line);
+            g_pending_llama_line.clear();
+        }
+        drained.swap(g_log_queue);
+    }
+
+    jclass str_cls = env->FindClass("java/lang/String");
+    jobjectArray result = env->NewObjectArray(static_cast<jsize>(drained.size()), str_cls, nullptr);
+    if (result == nullptr) {
+        env->DeleteLocalRef(str_cls);
+        return nullptr;
+    }
+    jsize idx = 0;
+    for (const std::string & line : drained) {
+        jstring jline = env->NewStringUTF(line.c_str());
+        if (jline != nullptr) {
+            env->SetObjectArrayElement(result, idx, jline);
+            env->DeleteLocalRef(jline);
+        }
+        ++idx;
+    }
+    env->DeleteLocalRef(str_cls);
+    return result;
+}
+
 JNIEXPORT jboolean JNICALL
 Java_com_example_engine_LlamaCppNativeBridge_nativeLoadModel(
     JNIEnv * env,
@@ -187,25 +321,52 @@ Java_com_example_engine_LlamaCppNativeBridge_nativeLoadModel(
 ) {
     std::lock_guard<std::mutex> lock(g_engine_mutex);
     ensure_backend_init();
+    g_cancel_requested.store(false);
 
     const std::string model_path = jstring_to_std(env, jmodel_path);
-    if (model_path.empty()) return JNI_FALSE;
+    if (model_path.empty()) {
+        LOGE("nativeLoadModel: caminho vazio");
+        return JNI_FALSE;
+    }
 
     const int32_t target_ctx = std::clamp(static_cast<int32_t>(n_ctx_requested), 512, 8192);
     if (g_model != nullptr && g_ctx != nullptr &&
         g_loaded_model_path == model_path && g_loaded_ctx_size == target_ctx) {
+        LOGI("nativeLoadModel: reutilizando modelo já em memória (%s, n_ctx=%d)",
+             model_path.c_str(), target_ctx);
         return JNI_TRUE;
+    }
+
+    uint64_t file_size_bytes = 0;
+    if (!verify_gguf_file(model_path, file_size_bytes)) {
+        return JNI_FALSE;
     }
 
     unload_locked();
 
+    const auto load_t0 = std::chrono::steady_clock::now();
+    LOGI("nativeLoadModel: iniciando carga de %s (%.1f MB), n_ctx=%d",
+         model_path.c_str(),
+         static_cast<double>(file_size_bytes) / (1024.0 * 1024.0),
+         target_ctx);
+
     llama_model_params mparams = llama_model_default_params();
     configure_model_load_params(mparams);
-    mparams.n_gpu_layers = 99; // usa GPU se Vulkan estiver compilado; caso contrário CPU otimizado
+    mparams.n_gpu_layers = llama_supports_gpu_offload() ? 99 : 0;
 
     g_model = llama_model_load_from_file(model_path.c_str(), mparams);
     if (g_model == nullptr) {
         LOGE("Falha ao carregar modelo GGUF: %s", model_path.c_str());
+        return JNI_FALSE;
+    }
+
+    const auto load_t1 = std::chrono::steady_clock::now();
+    const auto load_ms = std::chrono::duration_cast<std::chrono::milliseconds>(load_t1 - load_t0).count();
+    LOGI("llama_model_load_from_file concluído em %lld ms", static_cast<long long>(load_ms));
+
+    if (g_cancel_requested.load()) {
+        LOGI("Carga abortada por cancelamento do usuário");
+        unload_locked();
         return JNI_FALSE;
     }
 
@@ -218,15 +379,23 @@ Java_com_example_engine_LlamaCppNativeBridge_nativeLoadModel(
 
     g_ctx = llama_init_from_model(g_model, cparams);
     if (g_ctx == nullptr) {
-        LOGE("Falha ao criar contexto llama.cpp");
+        LOGE("Falha ao criar contexto llama.cpp (n_ctx=%d)", target_ctx);
         unload_locked();
         return JNI_FALSE;
     }
 
+    const auto ctx_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - load_t1
+    ).count();
+
     g_loaded_model_path = model_path;
     g_loaded_ctx_size = target_ctx;
-    LOGI("Modelo GGUF carregado com sucesso (%s), n_ctx=%d, threads=%d/%d",
-         model_path.c_str(), target_ctx, cparams.n_threads, cparams.n_threads_batch);
+    LOGI("Contexto criado em %lld ms (n_ctx=%d, threads_decode=%d, threads_prefill=%d, hw_cores=%u)",
+         static_cast<long long>(ctx_ms),
+         target_ctx,
+         cparams.n_threads,
+         cparams.n_threads_batch,
+         std::thread::hardware_concurrency());
     return JNI_TRUE;
 }
 
@@ -236,6 +405,7 @@ Java_com_example_engine_LlamaCppNativeBridge_nativeUnloadModel(
     jobject /* thiz */
 ) {
     std::lock_guard<std::mutex> lock(g_engine_mutex);
+    LOGI("nativeUnloadModel chamado");
     unload_locked();
 }
 
@@ -245,6 +415,7 @@ Java_com_example_engine_LlamaCppNativeBridge_nativeCancel(
     jobject /* thiz */
 ) {
     g_cancel_requested.store(true);
+    LOGI("nativeCancel sinalizado");
 }
 
 JNIEXPORT jint JNICALL
@@ -335,10 +506,11 @@ Java_com_example_engine_LlamaCppNativeBridge_nativeGenerateStream(
     }
 
     std::string prompt_text;
-    if (formatted_len > 0) {
+    const bool used_model_template = (formatted_len > 0);
+    if (used_model_template) {
         prompt_text.assign(formatted.data(), static_cast<size_t>(formatted_len));
     } else {
-        // Fallback ChatML caso o GGUF não tenha metadado de chat_template
+        // Fallback ChatML caso o GGUF não tenha metadado de chat_template ou template Jinja complexo
         for (size_t i = 0; i < chat_msgs.size(); ++i) {
             prompt_text += "<|im_start|>";
             prompt_text += chat_msgs[i].role;
@@ -362,7 +534,7 @@ Java_com_example_engine_LlamaCppNativeBridge_nativeGenerateStream(
         true
     );
     if (n_prompt_tokens <= 0) {
-        LOGE("Falha ao calcular tokens do prompt");
+        LOGE("Falha ao calcular tokens do prompt (n_prompt_tokens=%d)", n_prompt_tokens);
         return -3;
     }
 
@@ -387,17 +559,33 @@ Java_com_example_engine_LlamaCppNativeBridge_nativeGenerateStream(
         n_prompt_tokens = static_cast<int32_t>(prompt_tokens.size());
     }
 
-    // Prefill em chunks de até 512 tokens (n_batch)
-    const int32_t chunk_size = 512;
+    LOGI("Prompt pronto: msgs=%d, template=%s, chars=%zu, tokens=%d, n_ctx=%d",
+         static_cast<int>(msg_count),
+         used_model_template ? "GGUF" : "ChatML-fallback",
+         prompt_text.size(),
+         n_prompt_tokens,
+         n_ctx);
+
+    // Prefill em chunks de até 256 tokens para manter cancelamento responsivo no mobile
+    const auto prefill_t0 = std::chrono::steady_clock::now();
+    const int32_t chunk_size = 256;
     for (int32_t offset = 0; offset < n_prompt_tokens; offset += chunk_size) {
-        if (g_cancel_requested.load()) return 0;
+        if (g_cancel_requested.load()) {
+            LOGI("Prefill cancelado em offset=%d/%d", offset, n_prompt_tokens);
+            return 0;
+        }
         const int32_t count = std::min(chunk_size, n_prompt_tokens - offset);
         llama_batch batch = llama_batch_get_one(prompt_tokens.data() + offset, count);
-        if (llama_decode(g_ctx, batch) != 0) {
-            LOGE("Erro em llama_decode durante prefill");
+        const int decode_rc = llama_decode(g_ctx, batch);
+        if (decode_rc != 0) {
+            LOGE("Erro em llama_decode durante prefill (rc=%d, offset=%d, count=%d)", decode_rc, offset, count);
             return -4;
         }
     }
+    const auto prefill_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - prefill_t0
+    ).count();
+    LOGI("Prefill concluído em %lld ms (%d tokens)", static_cast<long long>(prefill_ms), n_prompt_tokens);
 
     auto sparams = llama_sampler_chain_default_params();
     llama_sampler * smpl = llama_sampler_chain_init(sparams);
@@ -425,14 +613,26 @@ Java_com_example_engine_LlamaCppNativeBridge_nativeGenerateStream(
     const int32_t available_gen = std::max(32, n_ctx - n_prompt_tokens - 4);
     const int32_t safe_max_tokens = std::clamp(static_cast<int32_t>(max_tokens), 32, available_gen);
     int32_t generated_count = 0;
+    int32_t emitted_callbacks = 0;
     std::string pending_utf8;
     std::vector<char> piece_buf(256);
+    const auto gen_t0 = std::chrono::steady_clock::now();
 
     for (int32_t step = 0; step < safe_max_tokens; ++step) {
-        if (g_cancel_requested.load()) break;
+        if (g_cancel_requested.load()) {
+            LOGI("Geração cancelada no passo %d", step);
+            break;
+        }
 
         llama_token new_token = llama_sampler_sample(smpl, g_ctx, -1);
-        if (llama_vocab_is_eog(vocab, new_token)) {
+        const bool is_eog = llama_vocab_is_eog(vocab, new_token);
+
+        if (step < 3) {
+            LOGI("Amostra step=%d token=%d is_eog=%d", step, static_cast<int>(new_token), is_eog ? 1 : 0);
+        }
+
+        if (is_eog) {
+            LOGI("Token EOG (%d) atingido no passo %d", static_cast<int>(new_token), step);
             break;
         }
 
@@ -460,7 +660,10 @@ Java_com_example_engine_LlamaCppNativeBridge_nativeGenerateStream(
             pending_utf8.append(piece_buf.data(), static_cast<size_t>(n_piece));
             const size_t valid_len = valid_utf8_prefix_len(pending_utf8);
             if (valid_len > 0) {
-                emit_bytes_to_callback(env, callback, on_token_method, pending_utf8.substr(0, valid_len));
+                if (!emit_bytes_to_callback(env, callback, on_token_method, pending_utf8.substr(0, valid_len))) {
+                    break;
+                }
+                ++emitted_callbacks;
                 pending_utf8.erase(0, valid_len);
             }
         }
@@ -468,15 +671,24 @@ Java_com_example_engine_LlamaCppNativeBridge_nativeGenerateStream(
         ++generated_count;
 
         llama_batch next_batch = llama_batch_get_one(&new_token, 1);
-        if (llama_decode(g_ctx, next_batch) != 0) {
-            LOGE("Erro em llama_decode durante geração");
+        const int step_rc = llama_decode(g_ctx, next_batch);
+        if (step_rc != 0) {
+            LOGE("Erro em llama_decode durante geração (rc=%d, step=%d)", step_rc, step);
             break;
         }
     }
 
     if (!pending_utf8.empty()) {
-        emit_bytes_to_callback(env, callback, on_token_method, pending_utf8);
+        if (emit_bytes_to_callback(env, callback, on_token_method, pending_utf8)) {
+            ++emitted_callbacks;
+        }
     }
+
+    const auto gen_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - gen_t0
+    ).count();
+    LOGI("Geração finalizada: tokens=%d, callbacks=%d, tempo=%lld ms",
+         generated_count, emitted_callbacks, static_cast<long long>(gen_ms));
 
     llama_sampler_free(smpl);
     return generated_count;
